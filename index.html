@@ -221,6 +221,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text-d
     <button class="btn btn-ghost" onclick="refreshFromGmail()" id="refreshBtn" style="display:none;">↻ Gmail</button>
     <button class="btn btn-ghost" onclick="openAddModal()">+ Task</button>
     <button class="btn btn-ghost btn-sm" id="gmailStatusBtn" onclick="handleGmailBtn()">📧 Connect</button>
+    <button class="btn btn-ghost btn-sm" onclick="checkAPIKey()" id="apiKeyBtn">🔑 API Key</button>
   </div>
   <div class="status-bar" id="statusBar" style="display:none;">
     <div class="status-dot" id="statusDot"></div>
@@ -518,7 +519,20 @@ function parseAnalysisText(text){
   newTasks.forEach(function(t){var ex=existMap[t.title.toLowerCase()];if(ex){t.done=ex.done;t.note=ex.note||'';}});
 
   state.schedule=newTasks;
-  state.deferred=newDeferred;
+  // Merge deferred: keep existing + add new, filter out placeholders, deduplicate
+  var existingDeferred=state.deferred||[];
+  var allDeferred=existingDeferred.concat(newDeferred);
+  // Remove placeholder/empty entries
+  allDeferred=allDeferred.filter(function(d){
+    if(!d||!d.trim())return false;
+    var t=d.trim();
+    if(t==='---'||t==='-'||t==='...'||t.length<3)return false;
+    return true;
+  });
+  // Deduplicate by text
+  var seen={};
+  allDeferred=allDeferred.filter(function(d){if(seen[d.toLowerCase()])return false;seen[d.toLowerCase()]=true;return true;});
+  state.deferred=allDeferred;
 
   // Priorities
   state.priorities=[];
@@ -654,10 +668,23 @@ function renderTaskSection(){
   }
 
   // Deferred subsection
-  var deferred=state.deferred||[];
+  var deferred=(state.deferred||[]).filter(function(d){return d&&d.trim().length>2&&d.trim()!=='---';});
   if(deferred.length){
-    html+='<div class="deferred-section"><div class="section-header" style="background:#F8F8F8;border-bottom:1px solid var(--border);" onclick="toggleSection(this)"><div class="section-dot" style="background:#bbb"></div><h2 style="color:var(--text-light);font-size:15px;">Deferred</h2><span class="section-count">'+deferred.length+'</span><span class="section-arrow open">▾</span></div><div class="section-body">';
-    deferred.forEach(function(d){html+='<div class="deferred-item"><span class="deferred-label">deferred</span>'+esc(d)+'</div>';});
+    html+='<div class="deferred-section">';
+    html+='<div class="section-header" style="background:#F8F8F8;border-bottom:1px solid var(--border);" onclick="toggleSection(this)">';
+    html+='<div class="section-dot" style="background:#bbb"></div>';
+    html+='<h2 style="color:var(--text-light);font-size:15px;">Deferred</h2>';
+    html+='<span class="section-count">'+deferred.length+'</span>';
+    html+='<button onclick="event.stopPropagation();clearDeferred()" style="font-size:10px;background:none;border:none;color:var(--text-light);cursor:pointer;padding:2px 6px;margin-left:4px;">Clear all</button>';
+    html+='<span class="section-arrow open">▾</span>';
+    html+='</div><div class="section-body">';
+    deferred.forEach(function(d,i){
+      html+='<div class="deferred-item" style="display:flex;align-items:center;gap:8px;">';
+      html+='<span class="deferred-label">deferred</span>';
+      html+='<span style="flex:1;">'+esc(d)+'</span>';
+      html+='<button onclick="deleteDeferred('+i+')" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;padding:0 4px;">×</button>';
+      html+='</div>';
+    });
     html+='</div></div>';
   }
 
@@ -841,7 +868,12 @@ function reanalyzeWithNewData(){var el=document.getElementById('newDataInput');c
 
 function doReanalysis(newData){
   var key=localStorage.getItem(K_GEMINI);
-  if(!key){toast('Add Gemini API key in settings');openModal('setupModal');return;}
+  if(!key){
+    var k=prompt('Enter your Gemini API key (AIzaSy...):\nGet one free at aistudio.google.com');
+    if(!k||!k.trim()){toast('No API key — cancelled');return;}
+    localStorage.setItem(K_GEMINI,k.trim());
+    key=k.trim();
+  }
   showLoading('Re-analyzing with Gemini...');
   var tz=localStorage.getItem(K_TZ)||'America/New_York';
   var timeStr=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:tz});
@@ -884,12 +916,24 @@ function doReanalysis(newData){
   .then(function(r){return r.json();})
   .then(function(data){
     hideLoading();
-    if(!data||!data.candidates||!data.candidates[0]||!data.candidates[0].content){toast('Re-analysis failed — check API key');return;}
+    if(!data||!data.candidates||!data.candidates[0]||!data.candidates[0].content){
+      var errMsg=data&&data.error?data.error.message:'No response from Gemini';
+      var errCode=data&&data.error?data.error.code:'';
+      console.error('Gemini error:',JSON.stringify(data));
+      if(errCode===429)toast('Gemini busy — wait 60 seconds and try again');
+      else if(errCode===401||errCode===403)toast('API key invalid — tap Connect to re-enter');
+      else toast('Gemini: '+errMsg.substring(0,60));
+      hideLoading();return;
+    }
     var result=data.candidates[0].content.parts[0].text;
-    var om=state.manual||[],os=state.schedule||[];
+    var om=state.manual||[],os=state.schedule||[],od=state.deferred||[];
     parseAnalysisText(result);
     os.forEach(function(old){var t=(state.schedule||[]).find(function(n){return n.title.toLowerCase()===old.title.toLowerCase();});if(t&&old.done){t.done=true;t.completedAt=old.completedAt;t.note=old.note||'';}});
-    state.manual=om;state.rawAnalysis=result;
+    // Merge preserved deferred with any new ones from this analysis
+    var merged=od.concat(state.deferred||[]);
+    var seen2={};
+    merged=merged.filter(function(d){if(!d||d.trim().length<3||d.trim()==='---')return false;if(seen2[d.toLowerCase()])return false;seen2[d.toLowerCase()]=true;return true;});
+    state.manual=om;state.deferred=merged;state.rawAnalysis=result;
     saveState();renderAll();toast('Day re-analyzed ✓');setStatus('green','Re-analyzed at '+timeStr);
   })
   .catch(function(){hideLoading();toast('Network error');});
@@ -903,7 +947,21 @@ function showLoading(msg){document.getElementById('loadingText').textContent=msg
 function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2200);}
 function setStatus(color,msg){var b=document.getElementById('statusBar'),d=document.getElementById('statusDot'),t=document.getElementById('statusText');if(b&&d&&t){b.style.display='flex';d.className='status-dot '+color;t.textContent=msg;}}
+function checkAPIKey(){
+  var key=localStorage.getItem(K_GEMINI);
+  if(!key){
+    var k=prompt('Paste your Gemini API key here:\n(Get free key at aistudio.google.com → Get API Key)');
+    if(k&&k.trim()){localStorage.setItem(K_GEMINI,k.trim());toast('API key saved ✓');}
+  } else {
+    if(confirm('Gemini API key is saved. Replace it?\nCurrent key starts with: '+key.substring(0,8)+'...')){
+      var k=prompt('Enter new Gemini API key:');
+      if(k&&k.trim()){localStorage.setItem(K_GEMINI,k.trim());toast('API key updated ✓');}
+    }
+  }
+}
 function startClock(){function tick(){var n=new Date();var el=document.getElementById('headerClock');if(el)el.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');}tick();setInterval(tick,1000);}
+function deleteDeferred(idx){state.deferred=(state.deferred||[]).filter(function(d,i){return i!==idx;});saveState();renderTaskSection();}
+function clearDeferred(){if(confirm('Clear all deferred tasks?')){state.deferred=[];saveState();renderTaskSection();}}
 function saveState(){localStorage.setItem(K_STATE,JSON.stringify(state));localStorage.setItem(K_DATE,state.date||todayStr());}
 function todayStr(){return new Date().toISOString().slice(0,10);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
