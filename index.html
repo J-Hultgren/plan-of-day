@@ -465,11 +465,22 @@ function parseEmail(text){
   // Risks
   S.risks=[];
   cl(sl(i4,i5)).split('\n').forEach(function(line){
-    line=line.trim().replace(/^[🔴🟡🟢⚠]\s*/,'');
+    line=line.trim();
     if(!line||line.length<3)return;
-    var level=/^RED/i.test(line)?'red':/^YELLOW/i.test(line)?'yellow':/^GREEN/i.test(line)?'green':'yellow';
-    var txt=line.replace(/^(RED|YELLOW|GREEN)\s*(\[TP\]|\[XE\])?\s*:?\s*/i,'').trim();
-    if(txt)S.risks.push({level:level,text:txt});
+    // Skip bare section header lines like "Risk Flags" or "⚠ Risk Flags"
+    if(/^[⚠📊🚩]?\s*Risk\s*Flags\s*$/i.test(line.replace(/^[🔴🟡🟢●•\-\*\s]*/,'')))return;
+    // Detect level from emoji OR text
+    var level='yellow';
+    if(/^🔴/.test(line)||/^RED/i.test(line.replace(/^[^A-Z]*/,'')))level='red';
+    else if(/^🟡/.test(line)||/^YELLOW/i.test(line.replace(/^[^A-Z]*/,'')))level='yellow';
+    else if(/^🟢/.test(line)||/^GREEN/i.test(line.replace(/^[^A-Z]*/,'')))level='green';
+    // Strip emoji and level word
+    var txt=line.replace(/^[🔴🟡🟢⚠●•\-\*]\s*/,'').replace(/^(RED|YELLOW|GREEN)\s*/i,'').trim();
+    // Extract TP/XE label
+    var lbl='';
+    var lblMatch=txt.match(/^\[?(TP|XE)\]?\s*:?\s*/i);
+    if(lblMatch){lbl=lblMatch[1].toLowerCase();txt=txt.slice(lblMatch[0].length).trim();}
+    if(txt)S.risks.push({level:level,label:lbl,text:txt});
   });
 
   // Decisions
@@ -515,7 +526,13 @@ function render(){
   // Risks
   if((S.risks||[]).length){
     html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--rose)"></div><h2>Risk Flags</h2><span class="sec-count">'+S.risks.length+'</span><span class="sec-arr open">▾</span></div><div class="sec-body">';
-    S.risks.forEach(function(r){html+='<div class="risk-row"><span class="risk-badge risk-'+r.level+'">'+r.level.toUpperCase()+'</span><span class="risk-text">'+esc(r.text)+'</span></div>';});
+    S.risks.forEach(function(r){
+      html+='<div class="risk-row">';
+      html+='<span class="risk-badge risk-'+r.level+'">'+r.level.toUpperCase()+'</span>';
+      if(r.label)html+='<span class="tag tag-'+r.label+'" style="flex-shrink:0;">'+r.label.toUpperCase()+'</span>';
+      html+='<span class="risk-text">'+esc(r.text)+'</span>';
+      html+='</div>';
+    });
     html+='</div></div>';
   }
 
