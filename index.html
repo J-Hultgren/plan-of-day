@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Plan of Day</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:     #FAF7F4;
+  --warm-white:#FFFBF8;
+  --rose-deep: #C4808A;
+  --rose-mid:  #D9A0A8;
+  --rose-pale: #F2DDE1;
+  --rose-dust: #EDD0D4;
+  --sage-deep: #7A9E8E;
+  --sage-mid:  #9DBCAD;
+  --sage-pale: #D8EBE4;
+  --blue-deep: #7A92B0;
+  --blue-mid:  #9FB4CC;
+  --blue-pale: #D8E6F2;
+  --mauve:     #B89AAD;
+  --mauve-pale:#EDE4EE;
+  --text-dark: #3A3035;
+  --text-mid:  #6B5F65;
+  --text-light:#A09098;
+  --border:    #E8DDE0;
+  --shadow:    rgba(180,140,150,0.12);
+  --tp-color:  var(--blue-deep);
+  --tp-pale:   var(--blue-pale);
+  --xe-color:  var(--sage-deep);
+  --xe-pale:   var(--sage-pale);
+  --both-color:var(--mauve);
+  --both-pale: var(--mauve-pale);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--text-dark);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ── HEADER ── */
+.header {
+  background: linear-gradient(135deg, #C4808A 0%, #B89AAD 50%, #7A92B0 100%);
+  padding: 20px 20px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(180,140,150,0.25);
+}
+.header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.header-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px;
+  font-weight: 300;
+  color: #fff;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+}
+.header-date {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  margin-top: 3px;
+  font-weight: 300;
+}
+.header-clock {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  color: #fff;
+  font-weight: 300;
+  letter-spacing: 1px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.header-stats {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+.stat-pill {
+  background: rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #fff;
+  font-weight: 400;
+}
+.stat-pill span { font-weight: 500; }
+.header-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-primary { background: rgba(255,255,255,0.9); color: var(--rose-deep); }
+.btn-primary:hover { background: #fff; }
+.btn-ghost { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+.btn-ghost:hover { background: rgba(255,255,255,0.25); }
+.btn-rose { background: var(--rose-deep); color: #fff; }
+.btn-rose:hover { background: var(--rose-mid); }
+.btn-sage { background: var(--sage-deep); color: #fff; }
+.btn-sage:hover { background: var(--sage-mid); }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-icon { width: 30px; height: 30px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 14px; transition: all 0.15s; }
+
+/* ── MAIN LAYOUT ── */
+.main { padding: 16px 16px 100px; max-width: 780px; margin: 0 auto; }
+
+/* ── SECTION CARDS ── */
+.section-card {
+  background: var(--warm-white);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  overflow: hidden;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+}
+.section-header h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 400;
+  flex: 1;
+  color: var(--text-dark);
+}
+.section-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.section-count {
+  font-size: 11px;
+  color: var(--text-light);
+  background: var(--border);
+  border-radius: 10px;
+  padding: 2px 7px;
+}
+.section-arrow { color: var(--text-light); font-size: 12px; transition: transform 0.2s; }
+.section-arrow.open { transform: rotate(180deg); }
+.section-body { padding: 0; }
+.section-body.hidden { display: none; }
+
+/* ── ANALYSIS CARD ── */
+.analysis-card {
+  background: linear-gradient(135deg, var(--rose-pale) 0%, var(--blue-pale) 100%);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  padding: 16px;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+.analysis-card h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.analysis-text {
+  font-size: 13px;
+  color: var(--text-mid);
+  line-height: 1.7;
+}
+
+/* ── TASK ITEMS ── */
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+  position: relative;
+}
+.task-item:last-child { border-bottom: none; }
+.task-item:hover { background: var(--cream); }
+.task-item.done { opacity: 0.55; }
+.task-item.done .task-title { text-decoration: line-through; }
+.task-item.carried { border-left: 3px solid var(--rose-mid); }
+.task-item.carried-label::before {
+  content: 'carried forward';
+  position: absolute;
+  top: 6px; right: 12px;
+  font-size: 9px;
+  color: var(--rose-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.task-check {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  color: transparent;
+}
+.task-check:hover { border-color: var(--rose-mid); }
+.task-check.checked { background: var(--sage-deep); border-color: var(--sage-deep); color: #fff; }
+
+.task-content { flex: 1; min-width: 0; }
+.task-time {
+  font-size: 11px;
+  color: var(--rose-deep);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+.task-title {
+  font-size: 14px;
+  color: var(--text-dark);
+  font-weight: 400;
+  line-height: 1.4;
+}
+.task-label {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+.label-tp { background: var(--blue-pale); color: var(--blue-deep); }
+.label-xe { background: var(--sage-pale); color: var(--sage-deep); }
+.label-both { background: var(--mauve-pale); color: var(--mauve); }
+.task-note {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
+  font-style: italic;
+  line-height: 1.4;
+}
+.task-note-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-mid);
+  font-family: 'DM Sans', sans-serif;
+  margin-top: 4px;
+  outline: none;
+  font-style: italic;
+  padding: 2px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.task-note-input::placeholder { color: var(--text-light); }
+.task-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.task-item:hover .task-actions { opacity: 1; }
+
+/* ── RISK PILLS ── */
+.risk-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.risk-row:last-child { border-bottom: none; }
+.risk-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.risk-red { background: #FFCDD2; color: #7F0000; }
+.risk-yellow { background: #FFE0B2; color: #7F3B00; }
+.risk-green { background: var(--sage-pale); color: var(--sage-deep); }
+.risk-text { color: var(--text-mid); line-height: 1.5; }
+
+/* ── PRIORITY ROWS ── */
+.priority-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.priority-row:last-child { border-bottom: none; }
+.priority-num {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--rose-mid);
+  flex-shrink: 0;
+  width: 20px;
+  line-height: 1.2;
+}
+.priority-content { flex: 1; }
+.priority-title { font-size: 13px; font-weight: 500; color: var(--text-dark); }
+.priority-reason { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+/* ── ADD TASK ── */
+.add-task-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--cream);
+  border-top: 1px solid var(--border);
+}
+.add-task-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--warm-white);
+  color: var(--text-dark);
+  outline: none;
+}
+.add-task-input:focus { border-color: var(--rose-mid); }
+.add-label-select {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--warm-white);
+  color: var(--text-mid);
+  outline: none;
+  cursor: pointer;
+}
+
+/* ── NEW DATA INPUT ── */
+.new-data-panel {
+  background: var(--warm-white);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  overflow: hidden;
+}
+.new-data-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.new-data-header h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--text-dark);
+}
+.new-data-body { padding: 14px 16px; display: none; }
+.new-data-body.open { display: block; }
+.data-textarea {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text-dark);
+  background: var(--cream);
+  resize: vertical;
+  outline: none;
+  margin-bottom: 10px;
+}
+.data-textarea:focus { border-color: var(--rose-mid); }
+
+/* ── DECISION ROW ── */
+.decision-row {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.decision-row:last-child { border-bottom: none; }
+.decision-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--mauve);
+  margin-bottom: 4px;
+}
+.decision-text { color: var(--text-dark); line-height: 1.5; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-light);
+}
+.empty-state h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 300;
+  margin-bottom: 8px;
+  color: var(--text-mid);
+}
+.empty-state p { font-size: 13px; line-height: 1.6; }
+
+/* ── GMAIL CONNECT ── */
+.connect-card {
+  background: var(--warm-white);
+  border-radius: 16px;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 2px 12px var(--shadow);
+  margin-bottom: 14px;
+}
+.connect-card h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+.connect-card p { font-size: 13px; color: var(--text-mid); margin-bottom: 16px; line-height: 1.6; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--text-dark);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 999;
+  transition: transform 0.3s;
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── LOADING ── */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(250,247,244,0.85);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 200;
+  display: none;
+}
+.loading-overlay.show { display: flex; }
+.loading-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--rose-pale);
+  border-top-color: var(--rose-deep);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+.loading-text { font-size: 13px; color: var(--text-mid); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── FAB ── */
+.fab {
+  position: fixed;
+  bottom: 24px; right: 20px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--rose-deep), var(--mauve));
+  color: #fff;
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(196,128,138,0.4);
+  cursor: pointer;
+  border: none;
+  z-index: 50;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.fab:hover { transform: scale(1.05); box-shadow: 0 6px 24px rgba(196,128,138,0.5); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(58,48,53,0.4);
+  z-index: 300;
+  display: none;
+  align-items: flex-end;
+  padding: 0;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--warm-white);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 40px;
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.modal h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 400;
+  margin-bottom: 14px;
+  color: var(--text-dark);
+}
+.modal-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.modal input, .modal select, .modal textarea {
+  flex: 1; border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+  font-size: 13px; font-family: 'DM Sans', sans-serif;
+  color: var(--text-dark); background: var(--cream);
+  outline: none;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--rose-mid); }
+
+@media (min-width: 600px) {
+  .main { padding: 20px 20px 100px; }
+  .header { padding: 20px 24px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Loading your day...</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title">Plan of Day</div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+    <div class="header-clock" id="headerClock"></div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-pill">TP: <span id="statTP">–</span></div>
+    <div class="stat-pill">XE: <span id="statXE">–</span></div>
+    <div class="stat-pill"><span id="statDone">0</span> done</div>
+    <div class="stat-pill"><span id="statLeft">–</span> remaining</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-primary" onclick="triggerReanalysis()">⚡ Re-analyze</button>
+    <button class="btn btn-ghost" onclick="openAddModal()">+ Add task</button>
+    <button class="btn btn-ghost btn-sm" onclick="connectGmail()" id="gmailBtn">📧 Gmail</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainContent">
+
+  <!-- Gmail connect (shown when not connected) -->
+  <div class="connect-card" id="connectCard" style="display:none;">
+    <h2>Connect your Gmail</h2>
+    <p>Connect your personal Gmail account so your Plan of Day emails are pulled in automatically each morning — or paste your Gemini API key to enable re-analysis.</p>
+    <div style="margin-bottom:10px;">
+      <input type="text" id="geminiKeyInput" placeholder="Gemini API key (for re-analysis)" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;font-family:DM Sans,sans-serif;outline:none;background:var(--cream);color:var(--text-dark);margin-bottom:8px;">
+      <button class="btn btn-rose" onclick="saveGeminiKey()" style="width:100%;">Save API Key</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-light);margin-top:8px;">Your key is stored in your browser only — never sent anywhere except Gemini.</div>
+  </div>
+
+  <!-- Sections injected by JS -->
+  <div id="appSections"></div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()" title="Add task">+</button>
+
+<!-- ADD TASK MODAL -->
+<div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal('addModal')">
+  <div class="modal">
+    <h3>Add to today</h3>
+    <div class="modal-row">
+      <input type="time" id="newTaskTime" placeholder="Time">
+      <select id="newTaskLabel">
+        <option value="tp">TerraPower</option>
+        <option value="xe">X-Energy</option>
+        <option value="both">Both</option>
+        <option value="">General</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <input type="text" id="newTaskTitle" placeholder="Task description" style="flex:2;">
+    </div>
+    <div class="modal-row">
+      <input type="text" id="newTaskNote" placeholder="Note (optional)">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn btn-rose" onclick="addManualTask()" style="flex:1;">Add task</button>
+      <button class="btn" onclick="closeModal('addModal')" style="background:var(--border);color:var(--text-mid);flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW DATA MODAL -->
+<div class="modal-overlay" id="dataModal" onclick="if(event.target===this)closeModal('dataModal')">
+  <div class="modal">
+    <h3>⚡ Add new information & re-analyze</h3>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Paste any new emails, messages, or updates that came in since this morning. Gemini will fold them into your existing day and re-prioritize.</p>
+    <textarea id="newDataInput" placeholder="Paste new emails, updates, messages here..." style="width:100%;min-height:120px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;font-family:DM Sans,sans-serif;color:var(--text-dark);background:var(--cream);resize:vertical;outline:none;margin-bottom:10px;"></textarea>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-rose" onclick="reanalyzeWithNewData()" style="flex:1;">Re-analyze now</button>
+      <button class="btn" onclick="closeModal('dataModal')" style="background:var(--border);color:var(--text-mid);flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+var KEY_TODAY  = 'pod_today_v2';
+var KEY_HIST   = 'pod_history_v2';
+var KEY_GEMINI = 'pod_gemini_key';
+var KEY_DATE   = 'pod_last_date';
+
+var state = {
+  date:      '',
+  summary:   '',
+  schedule:  [],
+  priorities:[],
+  risks:     [],
+  decisions: [],
+  manual:    [],
+  rawTP:     '',
+  rawXE:     '',
+  rawAnalysis: ''
+};
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  startClock();
+  setHeaderDate();
+  loadOrInit();
+});
+
+function loadOrInit() {
+  var today     = todayStr();
+  var lastDate  = localStorage.getItem(KEY_DATE) || '';
+  var savedRaw  = localStorage.getItem(KEY_TODAY);
+
+  if (lastDate === today && savedRaw) {
+    // Same day — load existing state
+    try { state = JSON.parse(savedRaw); } catch(e) {}
+    renderAll();
+  } else {
+    // New day — carry forward incomplete tasks, check for new POD email
+    if (lastDate && savedRaw) {
+      carryForward(JSON.parse(savedRaw || '{}'));
+    }
+    checkForTodayEmail();
+  }
+}
+
+function carryForward(yesterday) {
+  var carried = [];
+  if (yesterday.schedule) {
+    yesterday.schedule.forEach(function(t) {
+      if (!t.done) {
+        var copy = Object.assign({}, t);
+        copy.carried = true;
+        copy.time = '';
+        carried.push(copy);
+      }
+    });
+  }
+  if (yesterday.manual) {
+    yesterday.manual.forEach(function(t) {
+      if (!t.done) {
+        var copy = Object.assign({}, t);
+        copy.carried = true;
+        carried.push(copy);
+      }
+    });
+  }
+  state.manual = carried;
+}
+
+// ── GMAIL / EMAIL PARSING ──────────────────────────────────────────────────
+function checkForTodayEmail() {
+  // Try to read from clipboard or prompt user to paste
+  showEmpty();
+}
+
+function showEmpty() {
+  var sections = document.getElementById('appSections');
+  var geminiKey = localStorage.getItem(KEY_GEMINI) || '';
+
+  sections.innerHTML = '<div class="connect-card" id="connectCard">' +
+    '<h2>Good morning ✨</h2>' +
+    '<p>Paste your Plan of Day email content below to load today\'s brief. Each morning your Gmail script sends this automatically — just copy the email text and paste it here once.</p>' +
+    (geminiKey ? '' : '<div style="margin-bottom:14px;"><input type="text" id="geminiKeyInput" placeholder="Gemini API key (for re-analysis)" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;font-family:DM Sans,sans-serif;outline:none;background:var(--cream);color:var(--text-dark);margin-bottom:8px;"><button class="btn btn-rose" onclick="saveGeminiKey()" style="width:100%;">Save API Key</button></div>') +
+    '<textarea id="podPasteInput" placeholder="Paste your Plan of Day email here..." style="width:100%;min-height:140px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;font-family:DM Sans,sans-serif;color:var(--text-dark);background:var(--cream);resize:vertical;outline:none;margin-bottom:10px;"></textarea>' +
+    '<button class="btn btn-rose" onclick="parsePastedEmail()" style="width:100%;padding:11px;">Load my day →</button>' +
+    (state.manual && state.manual.length > 0 ? '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);"><div style="font-size:12px;color:var(--text-light);margin-bottom:8px;">'+state.manual.length+' tasks carried forward from yesterday</div><button class="btn btn-ghost btn-sm" onclick="renderAll()" style="background:var(--rose-pale);color:var(--rose-deep);border:none;">View carried tasks →</button></div>' : '') +
+    '</div>';
+}
+
+function parsePastedEmail() {
+  var input = document.getElementById('podPasteInput');
+  if (!input || !input.value.trim()) { toast('Please paste your Plan of Day email first'); return; }
+  var text = input.value.trim();
+  parseAnalysisText(text);
+  saveState();
+  renderAll();
+  toast('Plan of Day loaded ✓');
+}
+
+function parseAnalysisText(text) {
+  state.rawAnalysis = text;
+  state.date = todayStr();
+  localStorage.setItem(KEY_DATE, state.date);
+
+  // Parse sections
+  var s1 = text.search(/SECTION 1|SUMMARY ANALYSIS/i);
+  var s2 = text.search(/SECTION 2|PROPOSED SCHEDULE/i);
+  var s3 = text.search(/SECTION 3|TOP PRIORITIES/i);
+  var s4 = text.search(/SECTION 4|RISK FLAGS/i);
+  var s5 = text.search(/SECTION 5|KEY DECISIONS/i);
+
+  var sumText  = s1 >= 0 ? (s2 > s1 ? text.substring(s1,s2) : text.substring(s1)) : '';
+  var schedText= s2 >= 0 ? (s3 > s2 ? text.substring(s2,s3) : text.substring(s2)) : '';
+  var priText  = s3 >= 0 ? (s4 > s3 ? text.substring(s3,s4) : text.substring(s3)) : '';
+  var riskText = s4 >= 0 ? (s5 > s4 ? text.substring(s4,s5) : text.substring(s4)) : '';
+  var decText  = s5 >= 0 ? text.substring(s5) : '';
+
+  var clean = function(t) { return t.replace(/---[^\n]*---\n?/,'').replace(/^[A-Z ]+:?\s*\n/,'').trim(); };
+  state.summary = clean(sumText);
+
+  // Parse schedule into task objects
+  var newTasks = [];
+  var id = Date.now();
+  clean(schedText).split('\n').forEach(function(line) {
+    line = line.trim();
+    if (!line) return;
+    // Format: HH:MM-HH:MM | [LABEL] | Activity
+    var m = line.match(/^(\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)\s*[|—-]\s*(\[?(?:TP|XE|BOTH|tp|xe|both)\]?)?\s*[|—-]?\s*(.+)/i);
+    if (m) {
+      var label = (m[2]||'').toLowerCase().replace(/[\[\]]/g,'').trim();
+      newTasks.push({ id: id++, time: m[1], label: label||'', title: m[3].trim(), done: false, note: '', carried: false, source: 'schedule' });
+    } else if (line.length > 3) {
+      // Less structured line — still add it
+      var lbl = '';
+      if (/\[TP\]/i.test(line)) lbl='tp';
+      else if (/\[XE\]/i.test(line)) lbl='xe';
+      else if (/\[BOTH\]/i.test(line)) lbl='both';
+      var title = line.replace(/\[TP\]|\[XE\]|\[BOTH\]/gi,'').trim();
+      if (title) newTasks.push({ id: id++, time: '', label: lbl, title: title, done: false, note: '', carried: false, source: 'schedule' });
+    }
+  });
+  // Preserve done status from existing tasks matching same title
+  var existingMap = {};
+  (state.schedule||[]).forEach(function(t){ existingMap[t.title] = t; });
+  newTasks.forEach(function(t){
+    if (existingMap[t.title]) {
+      t.done = existingMap[t.title].done;
+      t.note = existingMap[t.title].note || '';
+    }
+  });
+  state.schedule = newTasks;
+
+  // Priorities
+  state.priorities = [];
+  clean(priText).split('\n').forEach(function(line){
+    line = line.trim();
+    if (!line) return;
+    var m = line.match(/^(?:TerraPower|X-Energy|TP|XE)\s+Priority\s*\d*\s*:?\s*(.+)/i);
+    if (m) {
+      var parts = m[1].split(' - ');
+      var lbl = /X-Energy|XE/i.test(line) ? 'xe' : 'tp';
+      state.priorities.push({ label: lbl, title: parts[0]||m[1], reason: parts.slice(1).join(' - ')||'' });
+    }
+  });
+
+  // Risks
+  state.risks = [];
+  clean(riskText).split('\n').forEach(function(line){
+    line = line.trim();
+    if (!line) return;
+    var level = 'green';
+    if (/^RED/i.test(line)) level = 'red';
+    else if (/^YELLOW/i.test(line)) level = 'yellow';
+    var text2 = line.replace(/^(RED|YELLOW|GREEN)\s*(\[TP\]|\[XE\])?\s*:?\s*/i,'');
+    if (text2) state.risks.push({ level: level, text: text2 });
+  });
+
+  // Decisions
+  state.decisions = [];
+  clean(decText).split('\n').forEach(function(line){
+    line = line.trim();
+    if (!line) return;
+    var m = line.match(/^(TerraPower|X-Energy)\s+Decision[^:]*:?\s*(.+)/i);
+    if (m) state.decisions.push({ label: /X-Energy/i.test(m[1])?'xe':'tp', text: m[2] });
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderAll() {
+  var sections = document.getElementById('appSections');
+  var html = '';
+
+  // Summary
+  if (state.summary) {
+    html += '<div class="analysis-card">' +
+      '<h2>✦ Summary</h2>' +
+      '<div class="analysis-text">'+esc(state.summary)+'</div>' +
+      '</div>';
+  }
+
+  // Schedule
+  var allTasks = (state.schedule||[]).concat(state.manual||[]);
+  // Sort by time
+  allTasks.sort(function(a,b){
+    if (!a.time && !b.time) return 0;
+    if (!a.time) return 1;
+    if (!b.time) return -1;
+    return a.time.localeCompare(b.time);
+  });
+
+  var tpCount = allTasks.filter(function(t){return t.label==='tp';}).length;
+  var xeCount = allTasks.filter(function(t){return t.label==='xe';}).length;
+  var doneCount = allTasks.filter(function(t){return t.done;}).length;
+  var leftCount = allTasks.filter(function(t){return !t.done;}).length;
+  document.getElementById('statTP').textContent   = tpCount;
+  document.getElementById('statXE').textContent   = xeCount;
+  document.getElementById('statDone').textContent  = doneCount;
+  document.getElementById('statLeft').textContent  = leftCount;
+
+  html += '<div class="section-card">' +
+    '<div class="section-header" onclick="toggleSection(this)">' +
+    '<div class="section-dot" style="background:var(--rose-mid)"></div>' +
+    '<h2>Today\'s Schedule</h2>' +
+    '<span class="section-count">'+allTasks.length+'</span>' +
+    '<span class="section-arrow open">▾</span>' +
+    '</div>' +
+    '<div class="section-body" id="sched-body">';
+
+  if (allTasks.length === 0) {
+    html += '<div class="empty-state"><h3>No tasks yet</h3><p>Load your Plan of Day email or add tasks manually.</p></div>';
+  } else {
+    allTasks.forEach(function(t) {
+      html += renderTask(t);
+    });
+  }
+
+  html += '<div class="add-task-bar">' +
+    '<input class="add-task-input" type="text" placeholder="Quick-add a task..." id="quickAdd" onkeydown="if(event.key===\'Enter\')quickAddTask()">' +
+    '<select class="add-label-select" id="quickLabel">' +
+    '<option value="tp">TP</option><option value="xe">XE</option><option value="both">Both</option><option value="">—</option>' +
+    '</select>' +
+    '<button class="btn btn-rose btn-sm" onclick="quickAddTask()">Add</button>' +
+    '</div>' +
+    '</div></div>';
+
+  // Priorities
+  if (state.priorities && state.priorities.length > 0) {
+    html += '<div class="section-card">' +
+      '<div class="section-header" onclick="toggleSection(this)">' +
+      '<div class="section-dot" style="background:var(--sage-deep)"></div>' +
+      '<h2>Top Priorities</h2>' +
+      '<span class="section-count">'+state.priorities.length+'</span>' +
+      '<span class="section-arrow open">▾</span>' +
+      '</div><div class="section-body">';
+    state.priorities.forEach(function(p,i){
+      html += '<div class="priority-row">' +
+        '<div class="priority-num">'+(i+1)+'</div>' +
+        '<div class="priority-content">' +
+        '<div class="priority-title">'+esc(p.title)+'<span class="task-label label-'+p.label+'">'+p.label.toUpperCase()+'</span></div>' +
+        (p.reason ? '<div class="priority-reason">'+esc(p.reason)+'</div>' : '') +
+        '</div></div>';
+    });
+    html += '</div></div>';
+  }
+
+  // Risks
+  if (state.risks && state.risks.length > 0) {
+    html += '<div class="section-card">' +
+      '<div class="section-header" onclick="toggleSection(this)">' +
+      '<div class="section-dot" style="background:#C4808A"></div>' +
+      '<h2>Risk Flags</h2>' +
+      '<span class="section-count">'+state.risks.length+'</span>' +
+      '<span class="section-arrow open">▾</span>' +
+      '</div><div class="section-body">';
+    state.risks.forEach(function(r){
+      html += '<div class="risk-row">' +
+        '<span class="risk-badge risk-'+r.level+'">'+r.level.toUpperCase()+'</span>' +
+        '<span class="risk-text">'+esc(r.text)+'</span></div>';
+    });
+    html += '</div></div>';
+  }
+
+  // Decisions
+  if (state.decisions && state.decisions.length > 0) {
+    html += '<div class="section-card">' +
+      '<div class="section-header" onclick="toggleSection(this)">' +
+      '<div class="section-dot" style="background:var(--mauve)"></div>' +
+      '<h2>Key Decisions</h2>' +
+      '<span class="section-count">'+state.decisions.length+'</span>' +
+      '<span class="section-arrow open">▾</span>' +
+      '</div><div class="section-body">';
+    state.decisions.forEach(function(d){
+      html += '<div class="decision-row">' +
+        '<div class="decision-label">'+d.label.toUpperCase()+' Decision</div>' +
+        '<div class="decision-text">'+esc(d.text)+'</div></div>';
+    });
+    html += '</div></div>';
+  }
+
+  // New data input
+  html += '<div class="section-card">' +
+    '<div class="section-header" onclick="toggleNewData(this)">' +
+    '<div class="section-dot" style="background:var(--blue-mid)"></div>' +
+    '<h2>Add New Information</h2>' +
+    '<span class="section-count" id="newDataCount">0 items</span>' +
+    '<span class="section-arrow">▾</span>' +
+    '</div>' +
+    '<div class="section-body hidden" id="newDataBody">' +
+    '<div style="padding:14px 16px;">' +
+    '<p style="font-size:12px;color:var(--text-light);margin-bottom:10px;">Paste new emails, updates, or messages received since this morning. Click Re-analyze to update your day.</p>' +
+    '<textarea id="inlineNewData" placeholder="Paste new information here..." style="width:100%;min-height:100px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;font-family:DM Sans,sans-serif;color:var(--text-dark);background:var(--cream);resize:vertical;outline:none;margin-bottom:10px;"></textarea>' +
+    '<button class="btn btn-rose" onclick="reanalyzeWithNewData()" style="width:100%;">⚡ Re-analyze with this data</button>' +
+    '</div></div></div>';
+
+  sections.innerHTML = html;
+}
+
+function renderTask(t) {
+  var labelHtml = t.label ? '<span class="task-label label-'+t.label+'">'+t.label.toUpperCase()+'</span>' : '';
+  var carriedClass = t.carried ? ' carried carried-label' : '';
+  return '<div class="task-item'+(t.done?' done':'')+carriedClass+'" id="task-'+t.id+'">' +
+    '<div class="task-check'+(t.done?' checked':'')+'" onclick="toggleTask('+t.id+')">'+(t.done?'✓':'')+'</div>' +
+    '<div class="task-content">' +
+    (t.time ? '<div class="task-time">'+t.time+'</div>' : '') +
+    '<div class="task-title">'+esc(t.title)+labelHtml+'</div>' +
+    '<input class="task-note-input" type="text" value="'+esc(t.note||'')+'" placeholder="Add a note..." onchange="updateNote('+t.id+',this.value)" onblur="saveState()">' +
+    '</div>' +
+    '<div class="task-actions">' +
+    '<button class="btn-icon" style="background:var(--rose-pale);color:var(--rose-deep);" onclick="deleteTask('+t.id+')" title="Delete">×</button>' +
+    '</div></div>';
+}
+
+// ── TASK ACTIONS ───────────────────────────────────────────────────────────
+function toggleTask(id) {
+  var found = findTask(id);
+  if (found) {
+    found.done = !found.done;
+    if (found.done) found.completedAt = new Date().toISOString();
+    saveState();
+    renderAll();
+    toast(found.done ? '✓ Done' : 'Marked incomplete');
+  }
+}
+
+function updateNote(id, val) {
+  var found = findTask(id);
+  if (found) { found.note = val; saveState(); }
+}
+
+function deleteTask(id) {
+  state.schedule = state.schedule.filter(function(t){return t.id!==id;});
+  state.manual   = state.manual.filter(function(t){return t.id!==id;});
+  saveState();
+  renderAll();
+}
+
+function findTask(id) {
+  return (state.schedule||[]).concat(state.manual||[]).find(function(t){return t.id===id;});
+}
+
+function quickAddTask() {
+  var input = document.getElementById('quickAdd');
+  var label = document.getElementById('quickLabel');
+  if (!input || !input.value.trim()) return;
+  var task = { id: Date.now(), time: '', label: label.value, title: input.value.trim(), done: false, note: '', carried: false, source: 'manual' };
+  if (!state.manual) state.manual = [];
+  state.manual.push(task);
+  input.value = '';
+  saveState();
+  renderAll();
+  toast('Task added');
+}
+
+function openAddModal() {
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2,'0');
+  var m = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('newTaskTime').value = h+':'+m;
+  document.getElementById('newTaskTitle').value = '';
+  document.getElementById('newTaskNote').value = '';
+  document.getElementById('addModal').classList.add('show');
+}
+
+function addManualTask() {
+  var title = document.getElementById('newTaskTitle').value.trim();
+  if (!title) { toast('Please enter a task'); return; }
+  var task = {
+    id: Date.now(),
+    time: document.getElementById('newTaskTime').value || '',
+    label: document.getElementById('newTaskLabel').value,
+    title: title,
+    done: false,
+    note: document.getElementById('newTaskNote').value || '',
+    carried: false,
+    source: 'manual'
+  };
+  if (!state.manual) state.manual = [];
+  state.manual.push(task);
+  saveState();
+  renderAll();
+  closeModal('addModal');
+  toast('Task added ✓');
+}
+
+// ── RE-ANALYSIS ────────────────────────────────────────────────────────────
+function triggerReanalysis() {
+  var key = localStorage.getItem(KEY_GEMINI);
+  if (!key) {
+    var k = prompt('Enter your Gemini API key to re-analyze:');
+    if (!k) return;
+    localStorage.setItem(KEY_GEMINI, k);
+    key = k;
+  }
+  openModal('dataModal');
+}
+
+function reanalyzeWithNewData() {
+  var key = localStorage.getItem(KEY_GEMINI);
+  if (!key) { toast('Please add your Gemini API key first'); return; }
+
+  var newData = (document.getElementById('inlineNewData') || document.getElementById('newDataInput') || {}).value || '';
+  closeModal('dataModal');
+  showLoading('Re-analyzing with Gemini...');
+
+  var completedTasks = (state.schedule||[]).concat(state.manual||[])
+    .filter(function(t){return t.done;})
+    .map(function(t){return 'COMPLETED: '+t.title+(t.note?' ('+t.note+')':'');})
+    .join('\n');
+
+  var prompt = 'You are helping Jessa, a dual-role nuclear program manager (TerraPower EPM + X-Energy Chemistry).\n\n';
+  prompt += 'ORIGINAL PLAN OF DAY:\n' + (state.rawAnalysis||state.summary||'') + '\n\n';
+  if (completedTasks) prompt += 'COMPLETED SO FAR TODAY:\n' + completedTasks + '\n\n';
+  if (newData) prompt += 'NEW INFORMATION RECEIVED:\n' + newData + '\n\n';
+  prompt += 'Based on all of the above, provide an updated Plan of Day in EXACTLY this format:\n\n';
+  prompt += '--- SECTION 1: SUMMARY ANALYSIS ---\nUpdated status in 3-5 sentences.\n\n';
+  prompt += '--- SECTION 2: PROPOSED SCHEDULE ---\n';
+  prompt += 'Remaining schedule from NOW until 17:00 ONLY. Work day ends at 5:00 PM. Nothing before 08:00 or after 17:00.\n';
+  prompt += 'STRICT RULES:\n';
+  prompt += '1. EXISTING CALENDAR MEETINGS ARE IMMOVABLE. Keep every meeting at its exact time. Do not move, shorten, or remove any calendar meeting.\n';
+  prompt += '2. Add 15 minutes of [PREP] immediately before each remaining meeting.\n';
+  prompt += '3. Skip tasks already marked COMPLETED above.\n';
+  prompt += '4. Fill remaining gaps with work tasks in priority order. Minimum 30-minute focus blocks.\n';
+  prompt += '5. Include a 30-minute lunch block between 12:00-13:30 wherever the schedule allows.\n';
+  prompt += '6. If no room exists for a task today, list it as [DEFERRED] at the very end.\n';
+  prompt += '7. Label every block: [TP], [XE], [BOTH], [MEETING], or [PREP].\n';
+  prompt += 'Format each line EXACTLY: HH:MM-HH:MM | [LABEL] | Activity\n';
+  prompt += 'Example: 13:45-14:00 | [PREP] | RP IMS Review prep\n';
+  prompt += '         14:00-15:00 | [MEETING] | Radiation Protection IMS Review\n';
+  prompt += '         15:00-16:30 | [XE] | NOR parameter documentation\n\n';
+  prompt += '--- SECTION 3: TOP PRIORITIES ---\nTerraPower Priority 1: [task] - [why]\nTerraPower Priority 2: [task] - [why]\nX-Energy Priority 1: [task] - [why]\nX-Energy Priority 2: [task] - [why]\n\n';
+  prompt += '--- SECTION 4: RISK FLAGS ---\nRED [TP]: ...\nYELLOW [XE]: ...\nGREEN [TP]: ...\n\n';
+  prompt += '--- SECTION 5: KEY DECISIONS ---\nTerraPower Decision Today: ...\nX-Energy Decision Today: ...\n\nBe direct. Name real systems and tasks. No filler.';
+
+  callGeminiAPI(key, prompt, function(result) {
+    hideLoading();
+    if (!result) { toast('Re-analysis failed — check API key'); return; }
+    var oldManual = state.manual || [];
+    parseAnalysisText(result);
+    state.manual = oldManual;
+    state.rawAnalysis = result;
+    saveState();
+    renderAll();
+    toast('Plan updated ✓');
+  });
+}
+
+function callGeminiAPI(key, prompt, callback) {
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + key;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 3000, temperature: 0.3 }
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      callback(data.candidates[0].content.parts[0].text);
+    } else {
+      callback(null);
+    }
+  })
+  .catch(function(){ callback(null); });
+}
+
+// ── GEMINI KEY ─────────────────────────────────────────────────────────────
+function saveGeminiKey() {
+  var input = document.getElementById('geminiKeyInput');
+  if (!input || !input.value.trim()) return;
+  localStorage.setItem(KEY_GEMINI, input.value.trim());
+  toast('API key saved ✓');
+}
+
+// ── UI HELPERS ─────────────────────────────────────────────────────────────
+function toggleSection(header) {
+  var body = header.nextElementSibling;
+  var arrow = header.querySelector('.section-arrow');
+  body.classList.toggle('hidden');
+  arrow.classList.toggle('open');
+}
+
+function toggleNewData(header) {
+  var body = document.getElementById('newDataBody');
+  var arrow = header.querySelector('.section-arrow');
+  body.classList.toggle('hidden');
+  arrow.classList.toggle('open');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function showLoading(msg) {
+  document.getElementById('loadingText').textContent = msg || 'Loading...';
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
+
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 2200);
+}
+
+function connectGmail() {
+  toast('Gmail auto-pull: paste your Plan of Day email to load');
+}
+
+// ── CLOCK ──────────────────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    var now = new Date();
+    var h = String(now.getHours()).padStart(2,'0');
+    var m = String(now.getMinutes()).padStart(2,'0');
+    var s = String(now.getSeconds()).padStart(2,'0');
+    var el = document.getElementById('headerClock');
+    if (el) el.textContent = h+':'+m+':'+s;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+function setHeaderDate() {
+  var el = document.getElementById('headerDate');
+  if (!el) return;
+  el.textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+}
+
+// ── PERSIST ────────────────────────────────────────────────────────────────
+function saveState() {
+  localStorage.setItem(KEY_TODAY, JSON.stringify(state));
+  localStorage.setItem(KEY_DATE, state.date || todayStr());
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+</script>
+</body>
+</html>
