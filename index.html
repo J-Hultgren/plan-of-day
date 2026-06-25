@@ -643,7 +643,7 @@ function renderBacklogSection(){
     });
   }
   html+='<div class="add-bar" style="background:#F5F0FF;">';
-  html+='<input class="add-inp" id="blAdd" type="text" placeholder="Add to backlog..." onkeydown="if(event.key==='Enter')addToBacklog()">';
+  html+='<input class="add-inp" id="blAdd" type="text" placeholder="Add to backlog..." onkeydown="if(event.key===\'Enter\')addToBacklog()">';
   html+='<select class="add-sel" id="blLabel"><option value="tp">TP</option><option value="xe">XE</option><option value="both">Both</option><option value="">—</option></select>';
   html+='<button class="btn btn-sm" onclick="addToBacklog()" style="background:var(--both);color:#fff;">Add</button>';
   html+='</div>';
