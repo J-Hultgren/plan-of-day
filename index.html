@@ -96,6 +96,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tag-prep  {background:var(--prep-pale); color:var(--prep);}
 .tag-empty {background:#EEE;color:#999;}
 
+/* Drag handle — narrow strip at TOP of block */
+.tl-drag-handle{position:absolute;top:0;left:0;right:0;height:14px;cursor:grab;background:rgba(0,0,0,0.06);border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:center;}
+.tl-drag-handle:active{cursor:grabbing;}
+.tl-drag-handle::after{content:'···';font-size:10px;color:rgba(0,0,0,0.25);letter-spacing:2px;line-height:1;}
+.tl-block-inner{padding-top:16px;} /* push content below drag handle */
+
 /* Resize handle at bottom of block */
 .tl-resize{position:absolute;bottom:0;left:0;right:0;height:6px;cursor:ns-resize;background:transparent;}
 .tl-resize:hover{background:rgba(0,0,0,0.08);}
@@ -616,14 +622,44 @@ function render(){
   }
 
   // Deferred
-  var def=(S.deferred||[]).filter(function(d){return d&&d.trim().length>2&&d.trim()!=='---';});
-  if(def.length){
-    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:#bbb"></div><h2>Deferred</h2><span class="sec-count">'+def.length+'</span><button onclick="event.stopPropagation();clearDeferred()" style="font-size:10px;background:none;border:none;color:var(--text-light);cursor:pointer;margin-left:4px;padding:2px 6px;border-radius:8px;border:1px solid var(--border);">Clear</button><span class="sec-arr open">▾</span></div><div class="sec-body">';
-    def.forEach(function(d,i){
-      var lbl=/terrapower/i.test(d)?'tp':/x-energy/i.test(d)?'xe':'';
+  // Split deferred into active and completed
+  var allDef=S.deferred||[];
+  var activeDef=allDef.filter(function(d){return d&&typeof d==='object'?!d.done:d&&d.trim().length>2&&d.trim()!=='---';});
+  var doneDef=allDef.filter(function(d){return d&&typeof d==='object'&&d.done;});
+  // Normalize string deferred to objects
+  S.deferred=allDef.map(function(d,i){
+    if(typeof d==='string'){return{text:d,done:false,id:'def-'+i};}
+    return d;
+  }).filter(function(d){return d.text&&d.text.trim().length>2&&d.text.trim()!=='---';});
+  activeDef=S.deferred.filter(function(d){return !d.done;});
+  doneDef=S.deferred.filter(function(d){return d.done;});
+
+  if(S.deferred.length){
+    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:#bbb"></div><h2>Deferred</h2><span class="sec-count">'+activeDef.length+'</span>'+(doneDef.length?'<span style="font-size:10px;color:var(--text-light);margin-left:4px;">'+doneDef.length+' done</span>':'')+'<button onclick="event.stopPropagation();clearDeferred()" style="font-size:10px;background:none;border:none;color:var(--text-light);cursor:pointer;margin-left:4px;padding:2px 6px;border-radius:8px;border:1px solid var(--border);">Clear all</button><span class="sec-arr open">▾</span></div><div class="sec-body">';
+    // Active deferred first
+    activeDef.forEach(function(d){
+      var lbl=/terrapower/i.test(d.text)?'tp':/x-energy/i.test(d.text)?'xe':'';
       var accent=lbl==='tp'?'var(--tp)':lbl==='xe'?'var(--xe)':'#bbb';
-      html+='<div class="def-item" style="border-left:3px solid '+accent+';">'+(lbl?'<span class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</span>':'')+'<span style="flex:1;">'+esc(d.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim())+'</span><button onclick="delDeferred('+i+')" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;flex-shrink:0;">×</button></div>';
+      html+='<div class="def-item" style="border-left:3px solid '+accent+';" data-defid="'+esc(d.id)+'">';
+      html+='<div class="def-check" data-defid="'+esc(d.id)+'" onclick="completeDeferred(this.dataset.defid)" title="Mark complete" style="width:16px;height:16px;border-radius:50%;border:1.5px solid #ccc;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;"></div>';
+      if(lbl)html+='<span class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</span>';
+      html+='<span style="flex:1;line-height:1.4;">'+esc(d.text.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim())+'</span>';
+      html+='<button data-defid="'+esc(d.id)+'" onclick="delDeferredById(this.dataset.defid)" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 4px;">×</button>';
+      html+='</div>';
     });
+    // Completed deferred at bottom, greyed out
+    if(doneDef.length){
+      html+='<div style="padding:6px 14px 2px;font-size:10px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;border-top:1px solid var(--border);">Completed</div>';
+      doneDef.forEach(function(d){
+        var lbl=/terrapower/i.test(d.text)?'tp':/x-energy/i.test(d.text)?'xe':'';
+        html+='<div class="def-item" style="opacity:0.5;border-left:3px solid var(--tp);">';
+        html+='<div style="width:16px;height:16px;border-radius:50%;background:var(--tp);border:1.5px solid var(--tp);display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0;">✓</div>';
+        if(lbl)html+='<span class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</span>';
+        html+='<span style="flex:1;text-decoration:line-through;line-height:1.4;">'+esc(d.text.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim())+'</span>';
+        html+='<button data-defid="'+esc(d.id)+'" onclick="delDeferredById(this.dataset.defid)" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 4px;">×</button>';
+        html+='</div>';
+      });
+    }
     html+='</div></div>';
   }
 
@@ -770,8 +806,9 @@ function renderTimeline(){
     unscheduled.forEach(function(t){
       var lbl=t.label||'empty';
       html+='<div class="tl-block l'+lbl+(t.done?' done':'')+'" id="tlb-'+t.id+'" data-id="'+t.id+'" style="position:relative;left:50px;width:calc(100% - 58px);margin:2px 0;height:28px;top:auto;" onclick="tlBlockClick(event,this.dataset.id)">';
+      html+='<div class="tl-drag-handle" style="border-radius:6px 6px 0 0;height:10px;" title="Drag to move"></div>';
       html+='<div class="tl-check'+(t.done?' done':'')+'" onclick="event.stopPropagation();togTask(this.closest(\".tl-block\").dataset.id)">'+( t.done?'✓':'')+'</div>';
-      html+='<div class="tl-block-inner" style="flex-direction:row;align-items:center;gap:6px;">';
+      html+='<div class="tl-block-inner" style="flex-direction:row;align-items:center;gap:6px;padding-top:10px;">';
       html+='<div class="tl-title">'+esc(t.title)+'</div>';
       if(lbl!=='empty')html+='<div class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</div>';
       html+='</div></div>';
@@ -790,10 +827,12 @@ var resizeState=null;
 function initTimeline(){
   var grid=document.getElementById('tlGrid');
   if(!grid)return;
-  // Drag blocks
+  // Drag blocks — only from the drag handle strip at top
   grid.addEventListener('mousedown',function(e){
     var block=e.target.closest('.tl-block');
-    if(!block||e.target.classList.contains('tl-resize')||e.target.classList.contains('tl-check'))return;
+    if(!block)return;
+    // Only allow drag from the handle strip (not resize, not check, not inner content)
+    if(!e.target.classList.contains('tl-drag-handle'))return;
     var id=block.dataset.id;
     var t=findTask(id);
     if(!t)return;
@@ -847,10 +886,11 @@ function initTimeline(){
     }
   });
 
-  // Touch drag for iPad
+  // Touch drag for iPad — only from drag handle
   grid.addEventListener('touchstart',function(e){
     var block=e.target.closest('.tl-block');
-    if(!block||e.target.classList.contains('tl-resize')||e.target.classList.contains('tl-check'))return;
+    if(!block)return;
+    if(!e.target.classList.contains('tl-drag-handle'))return;
     var id=block.dataset.id;var t=findTask(id);if(!t)return;
     var touch=e.touches[0];
     dragState={id:id,startY:touch.clientY,origStart:timeToMinutes(t.time),origEnd:t.endTime?timeToMinutes(t.endTime):timeToMinutes(t.time)+30,duration:(t.endTime?timeToMinutes(t.endTime):timeToMinutes(t.time)+30)-timeToMinutes(t.time)};
@@ -1067,7 +1107,17 @@ function moveToToday(i){var b=S.backlog&&S.backlog[i];if(!b)return;if(!S.manual)
 
 // ── DEFERRED ───────────────────────────────────────────────────────────────
 function delDeferred(i){S.deferred=(S.deferred||[]).filter(function(d,idx){return idx!==i;});save();render();}
+function delDeferredById(id){S.deferred=(S.deferred||[]).filter(function(d){return (typeof d==='object'?d.id:null)!==id;});save();render();}
+function completeDeferred(id){
+  var d=(S.deferred||[]).find(function(d){return typeof d==='object'&&d.id===id;});
+  if(!d)return;
+  d.done=true;
+  d.completedAt=new Date().toISOString();
+  // Also archive to Supabase archive under 'deferred_done'
+  save();render();toast('Marked complete ✓');
+}
 function clearDeferred(){if(confirm('Clear all deferred tasks?')){S.deferred=[];save();render();}}
+function clearCompletedDeferred(){S.deferred=(S.deferred||[]).filter(function(d){return typeof d==='object'?!d.done:true;});save();render();}
 
 // ── FILTER ─────────────────────────────────────────────────────────────────
 function setFilter(f,btn){
