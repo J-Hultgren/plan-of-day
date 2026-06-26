@@ -51,14 +51,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .summary-text{font-size:13px;color:var(--text-mid);line-height:1.7;}
 
 /* TWO COLUMN LAYOUT */
-.day-layout{display:grid;grid-template-columns:1fr 300px;gap:10px;align-items:start;}
-@media(max-width:700px){.day-layout{grid-template-columns:1fr;}}
+.day-layout{display:flex;flex-direction:column;gap:10px;}
 
 /* ── TIMELINE PLANNER ── */
 .timeline-wrap{background:var(--warm);border-radius:14px;overflow:hidden;box-shadow:0 2px 10px var(--shadow);}
 .timeline-header{padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .timeline-header h2{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:400;color:var(--text);}
-.timeline-body{position:relative;overflow-y:auto;max-height:600px;}
+.timeline-body{position:relative;overflow-y:auto;max-height:700px;}
 .timeline-grid{position:relative;min-height:calc(var(--hour-h) * 9); /* 08:00-17:00 = 9 hrs */}
 
 /* Hour rows */
@@ -577,9 +576,7 @@ function render(){
   html+='</div>';
 
   // Two column layout
-  html+='<div class="day-layout">';
-
-  // LEFT: Timeline
+  // Timeline + sections in single column
   html+='<div class="timeline-wrap">';
   html+='<div class="timeline-header"><h2>Today\'s Schedule</h2>';
   html+='<button class="btn btn-sm" style="background:var(--rose-pale);color:var(--rose);border:none;" onclick="openAddModal()">+ Add</button>';
@@ -595,8 +592,7 @@ function render(){
   html+='</div>';
   html+='</div>';
 
-  // RIGHT: panels
-  html+='<div class="right-panel">';
+  // Sections below timeline
 
   // Priorities
   if((S.priorities||[]).length){
@@ -664,7 +660,7 @@ function render(){
   html+='<textarea id="inlineInfo" placeholder="Paste new emails or updates..." style="width:100%;min-height:80px;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:12px;font-family:DM Sans,sans-serif;color:var(--text);background:var(--cream);resize:vertical;outline:none;margin-bottom:8px;"></textarea>';
   html+='<button class="btn btn-rose" onclick="inlineReanalyze()" style="width:100%;">⚡ Re-analyze</button></div></div></div>';
 
-  html+='</div></div>'; // close right-panel and day-layout
+  // end sections
 
   document.getElementById('main').innerHTML=html;
   initTimeline();
@@ -675,7 +671,7 @@ function render(){
 // ── TIMELINE RENDERER ──────────────────────────────────────────────────────
 function renderTimeline(){
   var totalMins=(END_HOUR-START_HOUR)*60;
-  var gridH=totalMins/60*parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hour-h')||'56');
+  // grid height calculated below
 
   var html='<div class="timeline-grid" id="tlGrid" style="height:'+(totalMins/60*56)+'px;" onclick="tlGridClick(event)">';
 
@@ -694,32 +690,94 @@ function renderTimeline(){
   // Now line placeholder
   html+='<div class="now-line" id="nowLine" style="display:none;"><div class="now-dot"></div></div>';
 
-  // Task blocks
+  // Task blocks — with overlap/stagger (Google Calendar style)
   var all=(S.tasks||[]).concat(S.manual||[]);
   if(activeFilter!=='all'){
     if(activeFilter==='done')all=all.filter(function(t){return t.done;});
     else all=all.filter(function(t){return t.label===activeFilter;});
   }
 
-  all.forEach(function(t){
-    if(!t.time)return; // skip tasks without time
+  // Separate timed vs unscheduled
+  var timed=all.filter(function(t){
+    if(!t.time)return false;
+    var s=timeToMinutes(t.time);
+    return s>=START_HOUR*60&&s<END_HOUR*60;
+  });
+  var unscheduled=all.filter(function(t){return !t.time;});
+
+  // Compute columns for overlapping blocks
+  timed.sort(function(a,b){return timeToMinutes(a.time)-timeToMinutes(b.time);});
+  var colGroups=[]; // array of columns, each column is array of task ids
+  var taskMeta={}; // id -> {col, totalCols}
+
+  timed.forEach(function(t){
+    var s=timeToMinutes(t.time);
+    var e=t.endTime?timeToMinutes(t.endTime):s+30;
+    var placed=false;
+    for(var c=0;c<colGroups.length;c++){
+      var lastId=colGroups[c][colGroups[c].length-1];
+      var last=timed.find(function(x){return x.id==lastId;});
+      if(!last)continue;
+      var lastEnd=last.endTime?timeToMinutes(last.endTime):timeToMinutes(last.time)+30;
+      if(s>=lastEnd){colGroups[c].push(t.id);taskMeta[t.id]={col:c};placed=true;break;}
+    }
+    if(!placed){colGroups.push([t.id]);taskMeta[t.id]={col:colGroups.length-1};}
+  });
+
+  // Find max simultaneous columns for each task (how wide the group is)
+  timed.forEach(function(t){
+    var s=timeToMinutes(t.time);
+    var e=t.endTime?timeToMinutes(t.endTime):s+30;
+    var maxCol=0;
+    timed.forEach(function(u){
+      if(u.id===t.id)return;
+      var us=timeToMinutes(u.time);
+      var ue=u.endTime?timeToMinutes(u.endTime):us+30;
+      if(us<e&&ue>s){maxCol=Math.max(maxCol,(taskMeta[u.id]||{col:0}).col);}
+    });
+    taskMeta[t.id].totalCols=Math.max((taskMeta[t.id]||{col:0}).col+1,maxCol+1);
+  });
+
+  // Render timed blocks
+  timed.forEach(function(t){
     var startMins=timeToMinutes(t.time);
     var endMins=t.endTime?timeToMinutes(t.endTime):startMins+30;
-    if(startMins<START_HOUR*60||startMins>=END_HOUR*60)return;
     endMins=Math.min(endMins,END_HOUR*60);
     var top=((startMins-START_HOUR*60)/60*56);
-    var height=Math.max(((endMins-startMins)/60*56),22);
+    var height=Math.max(((endMins-startMins)/60*56),24);
     var lbl=t.label||'empty';
-    html+='<div class="tl-block l'+lbl+(t.done?' done':'')+(t.id===selectedId?' selected':'')+'" id="tlb-'+t.id+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+height+'px;" onclick="tlBlockClick(event,\''+t.id+'\')">';
-    html+='<div class="tl-check'+(t.done?' done':'')+'" onclick="event.stopPropagation();togTask(\''+t.id+'\')">'+( t.done?'✓':'')+'</div>';
+    var meta=taskMeta[t.id]||{col:0,totalCols:1};
+    var col=meta.col, total=meta.totalCols;
+    var timelineW='calc(100% - 58px)';
+    var blockW=total>1?'calc('+timelineW+' / '+total+' - 2px)':timelineW;
+    var blockL=total>1?'calc(50px + '+col+' * ('+timelineW+' / '+total+'))':'50px';
+    html+='<div class="tl-block l'+lbl+(t.done?' done':'')+(t.id===selectedId?' selected':'')+'" id="tlb-'+t.id+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+height+'px;left:'+blockL+';width:'+blockW+';right:auto;" onclick="tlBlockClick(event,this.dataset.id)">';
+    html+='<div class="tl-check'+(t.done?' done':'')+'" onclick="event.stopPropagation();togTask(this.closest(\'.tl-block\').dataset.id)">'+( t.done?'✓':'')+'</div>';
     html+='<div class="tl-block-inner">';
     if(height>30)html+='<div class="tl-time">'+formatTime12(t.time)+(t.endTime?' – '+formatTime12(t.endTime):'')+'</div>';
     html+='<div class="tl-title">'+esc(t.title)+'</div>';
     if(height>48&&lbl!=='empty')html+='<div class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</div>';
     html+='</div>';
-    html+='<div class="tl-resize" data-id="'+t.id+'" onmousedown="startResize(event,\''+t.id+'\')"></div>';
+    html+='<div class="tl-resize" data-id="'+t.id+'" onmousedown="startResize(event,this.dataset.id)"></div>';
     html+='</div>';
   });
+
+  // Unscheduled tasks as a list below the grid
+  if(unscheduled.length){
+    var unschTop=(END_HOUR-START_HOUR)*56+8;
+    html+='<div style="position:absolute;top:'+unschTop+'px;left:0;right:0;border-top:1px dashed var(--border);padding-top:6px;">';
+    html+='<div style="padding:4px 8px 4px 50px;font-size:10px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Unscheduled</div>';
+    unscheduled.forEach(function(t){
+      var lbl=t.label||'empty';
+      html+='<div class="tl-block l'+lbl+(t.done?' done':'')+'" id="tlb-'+t.id+'" data-id="'+t.id+'" style="position:relative;left:50px;width:calc(100% - 58px);margin:2px 0;height:28px;top:auto;" onclick="tlBlockClick(event,this.dataset.id)">';
+      html+='<div class="tl-check'+(t.done?' done':'')+'" onclick="event.stopPropagation();togTask(this.closest(\".tl-block\").dataset.id)">'+( t.done?'✓':'')+'</div>';
+      html+='<div class="tl-block-inner" style="flex-direction:row;align-items:center;gap:6px;">';
+      html+='<div class="tl-title">'+esc(t.title)+'</div>';
+      if(lbl!=='empty')html+='<div class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</div>';
+      html+='</div></div>';
+    });
+    html+='</div>';
+  }
 
   html+='</div>';
   return html;
