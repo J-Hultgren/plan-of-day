@@ -72,7 +72,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .now-dot{position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--rose);}
 
 /* Task blocks on timeline */
-.tl-block{position:absolute;left:50px;right:8px;border-radius:8px;cursor:grab;user-select:none;overflow:hidden;transition:box-shadow 0.15s,opacity 0.15s;z-index:5;}
+.tl-block{position:absolute;left:50px;right:8px;border-radius:8px;cursor:default;user-select:none;overflow:hidden;transition:box-shadow 0.15s,opacity 0.15s;z-index:5;}
 .tl-block:active{cursor:grabbing;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:20;}
 .tl-block.dragging{opacity:0.7;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,0.2);}
 .tl-block.done{opacity:0.45;}
@@ -85,9 +85,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tl-block.lprep   {background:var(--prep-pale);  border-left:3px solid var(--prep);}
 .tl-block.lempty  {background:#F5F5F5;            border-left:3px solid #CCC;}
 
-.tl-block-inner{padding:4px 8px;height:100%;display:flex;flex-direction:column;justify-content:center;gap:1px;}
-.tl-time{font-size:9px;color:var(--text-light);font-weight:500;white-space:nowrap;}
-.tl-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.tl-block-inner{padding:4px 8px 4px 20px;height:100%;display:flex;flex-direction:column;justify-content:flex-start;gap:1px;overflow:hidden;box-sizing:border-box;}
+.tl-time{font-size:9px;color:var(--text-light);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.tl-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;}
 .tl-tag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;text-transform:uppercase;align-self:flex-start;margin-top:1px;}
 .tag-tp    {background:var(--tp-pale);   color:var(--tp);}
 .tag-xe    {background:var(--xe-pale);   color:var(--xe);}
@@ -96,11 +96,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tag-prep  {background:var(--prep-pale); color:var(--prep);}
 .tag-empty {background:#EEE;color:#999;}
 
-/* Drag handle — narrow strip at TOP of block */
-.tl-drag-handle{position:absolute;top:0;left:0;right:0;height:14px;cursor:grab;background:rgba(0,0,0,0.06);border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:center;}
+/* Drag handle — vertical dots on LEFT edge of block */
+.tl-drag-handle{position:absolute;top:0;bottom:0;left:0;width:14px;cursor:grab;background:rgba(0,0,0,0.05);border-radius:6px 0 0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex-shrink:0;}
 .tl-drag-handle:active{cursor:grabbing;}
-.tl-drag-handle::after{content:'···';font-size:10px;color:rgba(0,0,0,0.25);letter-spacing:2px;line-height:1;}
-.tl-block-inner{padding-top:16px;} /* push content below drag handle */
+.tl-drag-handle::before{content:'⋮';font-size:13px;color:rgba(0,0,0,0.3);line-height:1;}
+.tl-block-inner{padding-left:18px;} /* push content right of drag handle */
 
 /* Resize handle at bottom of block */
 .tl-resize{position:absolute;bottom:0;left:0;right:0;height:6px;cursor:ns-resize;background:transparent;}
@@ -785,8 +785,8 @@ function renderTimeline(){
     var meta=taskMeta[t.id]||{col:0,totalCols:1};
     var col=meta.col, total=meta.totalCols;
     var timelineW='calc(100% - 58px)';
-    var blockW=total>1?'calc('+timelineW+' / '+total+' - 2px)':timelineW;
-    var blockL=total>1?'calc(50px + '+col+' * ('+timelineW+' / '+total+'))':'50px';
+    var blockW=total>1?'calc('+timelineW+' / '+total+' - 3px)':timelineW;
+    var blockL=total>1?'calc(50px + '+col+' * ('+timelineW+' / '+total+') + '+(col>0?'1':'0')+'px)':'50px';
     html+='<div class="tl-block l'+lbl+(t.done?' done':'')+(t.id===selectedId?' selected':'')+'" id="tlb-'+t.id+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+height+'px;left:'+blockL+';width:'+blockW+';right:auto;" onclick="tlBlockClick(event,this.dataset.id)">';
     html+='<div class="tl-check'+(t.done?' done':'')+'" onclick="event.stopPropagation();togTask(this.closest(\'.tl-block\').dataset.id)">'+( t.done?'✓':'')+'</div>';
     html+='<div class="tl-block-inner">';
@@ -827,12 +827,13 @@ var resizeState=null;
 function initTimeline(){
   var grid=document.getElementById('tlGrid');
   if(!grid)return;
-  // Drag blocks — only from the drag handle strip at top
+  // Drag blocks — only from the left drag handle (⋮ dots)
   grid.addEventListener('mousedown',function(e){
     var block=e.target.closest('.tl-block');
     if(!block)return;
-    // Only allow drag from the handle strip (not resize, not check, not inner content)
-    if(!e.target.classList.contains('tl-drag-handle'))return;
+    // Only from the drag handle — check if click is in left 14px or on handle element
+    var handle=e.target.closest('.tl-drag-handle');
+    if(!handle)return;
     var id=block.dataset.id;
     var t=findTask(id);
     if(!t)return;
@@ -886,11 +887,12 @@ function initTimeline(){
     }
   });
 
-  // Touch drag for iPad — only from drag handle
+  // Touch drag for iPad — only from left drag handle
   grid.addEventListener('touchstart',function(e){
     var block=e.target.closest('.tl-block');
     if(!block)return;
-    if(!e.target.classList.contains('tl-drag-handle'))return;
+    var handle=e.target.closest('.tl-drag-handle');
+    if(!handle)return;
     var id=block.dataset.id;var t=findTask(id);if(!t)return;
     var touch=e.touches[0];
     dragState={id:id,startY:touch.clientY,origStart:timeToMinutes(t.time),origEnd:t.endTime?timeToMinutes(t.endTime):timeToMinutes(t.time)+30,duration:(t.endTime?timeToMinutes(t.endTime):timeToMinutes(t.time)+30)-timeToMinutes(t.time)};
