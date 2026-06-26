@@ -312,28 +312,34 @@ function supaHeaders() {
 // Save state to Supabase (non-blocking)
 function syncToSupabase() {
   try {
-    fetch(SUPA_URL + '/rest/v1/pod_state?id=eq.jessa', {
-      method: 'PATCH',
-      headers: supaHeaders(),
-      body: JSON.stringify({ state: S, date: S.date || todayStr(), updated_at: new Date().toISOString() })
+    // Use upsert so it works whether the row exists or not
+    fetch(SUPA_URL + '/rest/v1/pod_state', {
+      method: 'POST',
+      headers: Object.assign({}, supaHeaders(), {'Prefer': 'resolution=merge-duplicates'}),
+      body: JSON.stringify({ id: 'jessa', state: S, date: S.date || todayStr(), updated_at: new Date().toISOString() })
     }).catch(function(){});
   } catch(e) {}
 }
 
 // Load state from Supabase
 function loadFromSupabase(cb) {
-  fetch(SUPA_URL + '/rest/v1/pod_state?id=eq.jessa&select=state,date', {
-    headers: supaHeaders()
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(rows) {
-    if (rows && rows[0] && rows[0].state && Object.keys(rows[0].state).length > 0) {
-      cb(rows[0].state, rows[0].date);
-    } else {
-      cb(null, null);
-    }
-  })
-  .catch(function(e) { console.error('Supabase load error:', e); cb(null, null); });
+  try {
+    fetch(SUPA_URL + '/rest/v1/pod_state?id=eq.jessa&select=state,date', {
+      headers: supaHeaders()
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(rows) {
+      if (rows && rows[0] && rows[0].state && Object.keys(rows[0].state).length > 0) {
+        cb(rows[0].state, rows[0].date);
+      } else {
+        cb(null, null);
+      }
+    })
+    .catch(function(e) { console.warn('Supabase load:', e.message); cb(null, null); });
+  } catch(e) { console.warn('Supabase unavailable'); cb(null, null); }
 }
 
 // Save archive entry to Supabase
