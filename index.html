@@ -301,7 +301,7 @@ var activeFilter='all';
 // ── STATE ──────────────────────────────────────────────────────────────────
 var S={
   date:'', summary:'', rawEmail:'',
-  tasks:[], priorities:[], risks:[], decisions:[], deferred:[], manual:[], backlog:[]
+  tasks:[], priorities:[], risks:[], decisions:[], deferred:[], manual:[], backlog:[], tomorrow:[]
 };
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
@@ -375,6 +375,17 @@ function parseEmail(text){
   localStorage.setItem(KD, S.date);
 
   // Find section boundaries
+  // Extract and store raw TOMORROW lines before main parse
+  var tomorrowLines=[];
+  text.split('\n').forEach(function(line){
+    if(/^TOMORROW:/i.test(line.trim())){
+      var parts=line.replace(/^TOMORROW:\s*/i,'').trim().split(/\s*\|\s*/);
+      var dt=parts[0]||''; var title=parts[1]||parts[0]||'';
+      if(title&&title.length>2)tomorrowLines.push({time:dt,title:title});
+    }
+  });
+  S.tomorrow=tomorrowLines;
+
   var i1=text.search(/SUMMARY ANALYSIS|SECTION 1/i);
   var i2=text.search(/PROPOSED SCHEDULE|SECTION 2/i);
   var i3=text.search(/TOP PRIORITIES|SECTION 3/i);
@@ -413,7 +424,8 @@ function parseEmail(text){
       return;
     }
 
-    // Skip noise
+    // Skip noise and TOMORROW lines (handled separately)
+    if(/^TOMORROW:/i.test(line))return;
     var low=line.toLowerCase().replace(/[^\w\s]/g,'').trim();
     if(NOISE.some(function(n){return low===n||low===n+':';}))return;
 
@@ -469,13 +481,16 @@ function parseEmail(text){
     if(!line||line.length<3)return;
     // Skip bare section header lines like "Risk Flags" or "⚠ Risk Flags"
     if(/^[⚠📊🚩]?\s*Risk\s*Flags\s*$/i.test(line.replace(/^[🔴🟡🟢●•\-\*\s]*/,'')))return;
-    // Detect level from emoji OR text
+    // Strip leading non-alpha chars to get to the level word
+    var stripped=line.replace(/^[\u{1F534}\u{1F7E1}\u{1F7E2}\u{26A0}\u25CF\u25CF\u2022\u25E6\s\-\*]+/u,'');
+    // Detect level — check both emoji codepoints and text
     var level='yellow';
-    if(/^🔴/.test(line)||/^RED/i.test(line.replace(/^[^A-Z]*/,'')))level='red';
-    else if(/^🟡/.test(line)||/^YELLOW/i.test(line.replace(/^[^A-Z]*/,'')))level='yellow';
-    else if(/^🟢/.test(line)||/^GREEN/i.test(line.replace(/^[^A-Z]*/,'')))level='green';
-    // Strip emoji and level word
-    var txt=line.replace(/^[🔴🟡🟢⚠●•\-\*]\s*/,'').replace(/^(RED|YELLOW|GREEN)\s*/i,'').trim();
+    var cp=line.codePointAt(0);
+    if(cp===128308||/^RED\b/i.test(stripped))level='red';
+    else if(cp===128993||cp===128992||/^YELLOW\b/i.test(stripped))level='yellow';
+    else if(cp===128994||/^GREEN\b/i.test(stripped))level='green';
+    // Strip level word and emoji from text
+    var txt=stripped.replace(/^(RED|YELLOW|GREEN)\s*/i,'').trim();
     // Extract TP/XE label
     var lbl='';
     var lblMatch=txt.match(/^\[?(TP|XE)\]?\s*:?\s*/i);
@@ -543,6 +558,9 @@ function render(){
     html+='</div></div>';
   }
 
+  // Look Ahead — tomorrow's meetings
+  html+=renderTomorrowSection();
+
   // Deferred — its own section, fully separate
   html+=renderDeferredSection();
 
@@ -602,6 +620,44 @@ function renderTask(t){
     '<div class="task-actions">'+
     '<button class="icon-btn" style="background:var(--rose-pale);color:var(--rose);" onclick="delTask(\''+t.id+'\')">×</button>'+
     '</div></div>';
+}
+
+function renderTomorrowSection(){
+  var tom=S.tomorrow||[];
+  if(!tom.length)return'';
+
+  var html='<div class="sec" style="background:#F8F9FF;">';
+  html+='<div class="sec-hdr" onclick="togSec(this)" style="background:#EEF0FF;">';
+  html+='<div class="sec-dot" style="background:var(--xe)"></div>';
+  html+='<h2 style="color:var(--xe);">Tomorrow — Look Ahead</h2>';
+  html+='<span class="sec-count">'+tom.length+'</span>';
+  html+='<span class="sec-arr">▾</span>';
+  html+='</div>';
+  html+='<div class="sec-body">';
+
+  tom.forEach(function(t){
+    // Parse time from ISO timestamp like 2026-06-26T15:00:00.0000000
+    var timeStr=t.time||'';
+    var displayTime='';
+    if(timeStr.includes('T')){
+      var timePart=timeStr.split('T')[1]||'';
+      var hhmm=timePart.substring(0,5);
+      // Convert to 12-hour
+      var h=parseInt(hhmm.split(':')[0]);
+      var m=hhmm.split(':')[1]||'00';
+      var ampm=h>=12?'PM':'AM';
+      h=h%12||12;
+      displayTime=h+':'+m+' '+ampm;
+    }
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">';
+    html+='<span style="font-size:11px;color:var(--xe);font-weight:500;flex-shrink:0;width:60px;">'+esc(displayTime)+'</span>';
+    html+='<span style="font-size:13px;color:var(--text-mid);">'+esc(t.title)+'</span>';
+    html+='<span class="tag tag-meeting" style="flex-shrink:0;">MTG</span>';
+    html+='</div>';
+  });
+
+  html+='</div></div>';
+  return html;
 }
 
 function renderDeferredSection(){
