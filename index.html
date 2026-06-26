@@ -295,6 +295,71 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 var KS='pod_v5_state', KD='pod_v5_date', KA='pod_archive', KG='pod_gemini_key';
+
+// ── SUPABASE SYNC ──────────────────────────────────────────────────────────
+var SUPA_URL = 'https://irmtvjxlntozigbqxhvm.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlybXR2anhsbnRvemlnYnF4aHZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTkzMTQsImV4cCI6MjA5MjQzNTMxNH0.nyIZx7Z0GnHEIlZpBlN6TzHHsf7tGuhdvWECdpcQ-a0';
+
+function supaHeaders() {
+  return {
+    'apikey': SUPA_KEY,
+    'Authorization': 'Bearer ' + SUPA_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal'
+  };
+}
+
+// Save state to Supabase (non-blocking)
+function syncToSupabase() {
+  try {
+    fetch(SUPA_URL + '/rest/v1/pod_state?id=eq.jessa', {
+      method: 'PATCH',
+      headers: supaHeaders(),
+      body: JSON.stringify({ state: S, date: S.date || todayStr(), updated_at: new Date().toISOString() })
+    }).catch(function(){});
+  } catch(e) {}
+}
+
+// Load state from Supabase
+function loadFromSupabase(cb) {
+  fetch(SUPA_URL + '/rest/v1/pod_state?id=eq.jessa&select=state,date', {
+    headers: supaHeaders()
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(rows) {
+    if (rows && rows[0] && rows[0].state && Object.keys(rows[0].state).length > 0) {
+      cb(rows[0].state, rows[0].date);
+    } else {
+      cb(null, null);
+    }
+  })
+  .catch(function(e) { console.error('Supabase load error:', e); cb(null, null); });
+}
+
+// Save archive entry to Supabase
+function archiveToSupabase(date, data) {
+  try {
+    fetch(SUPA_URL + '/rest/v1/pod_archive', {
+      method: 'POST',
+      headers: Object.assign({}, supaHeaders(), {'Prefer': 'resolution=merge-duplicates'}),
+      body: JSON.stringify({ id: date, data: data, created_at: new Date().toISOString() })
+    }).catch(function(){});
+  } catch(e) {}
+}
+
+// Load full archive from Supabase
+function loadArchiveFromSupabase(cb) {
+  fetch(SUPA_URL + '/rest/v1/pod_archive?select=id,data&order=id.desc', {
+    headers: supaHeaders()
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(rows) {
+    var archive = {};
+    if (rows) rows.forEach(function(r) { archive[r.id] = r.data; });
+    cb(archive);
+  })
+  .catch(function() { cb({}); });
+}
 var LABELS=['tp','xe','both','meeting','prep',''];
 var activeFilter='all';
 
@@ -310,20 +375,59 @@ window.addEventListener('DOMContentLoaded',function(){
   document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 
   var today=todayStr(), lastDate=localStorage.getItem(KD)||'', raw=localStorage.getItem(KS);
+
+  // Same day — load local immediately, then check Supabase for updates from other devices
   if(lastDate===today&&raw){
     try{S=JSON.parse(raw);}catch(e){}
-    render(); return;
+    render();
+    loadFromSupabase(function(remote,remoteDate){
+      if(!remote||remoteDate!==today)return;
+      var localDone=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.done;}).length;
+      var remoteDone=((remote.tasks||[]).concat(remote.manual||[])).filter(function(t){return t.done;}).length;
+      if(remoteDone>localDone||(remote.backlog||[]).length>(S.backlog||[]).length){
+        S=remote;
+        localStorage.setItem(KS,JSON.stringify(S));
+        localStorage.setItem(KD,remoteDate);
+        render();
+        toast('Synced from cloud ✓');
+      }
+    });
+    return;
   }
-  // New day — save yesterday, carry forward incomplete tasks
+
+  // New day — archive yesterday to Supabase, carry forward incomplete tasks
   if(raw){
     try{
       var yesterday=JSON.parse(raw);
-      localStorage.setItem(KY, yesterday.rawEmail||JSON.stringify(yesterday));
+      var archDate=lastDate||'unknown';
+      var archData={
+        date:archDate,
+        summary:yesterday.summary||'',
+        tasks:(yesterday.tasks||[]).map(function(t){return{title:t.title,label:t.label,time:t.time,done:t.done,note:t.note||''};}),
+        manual:(yesterday.manual||[]).map(function(t){return{title:t.title,label:t.label,time:t.time,done:t.done,note:t.note||''};}),
+        deferred:yesterday.deferred||[]
+      };
+      var localArch=JSON.parse(localStorage.getItem(KA)||'{}');
+      localArch[archDate]=archData;
+      localStorage.setItem(KA,JSON.stringify(localArch));
+      archiveToSupabase(archDate,archData);
       var carried=carryForward(yesterday);
       S.manual=carried;
-    }catch(e){}
+    }catch(e){console.error('Archive error:',e);}
   }
-  showWelcome();
+
+  // Check Supabase — another device may have already loaded today's plan
+  loadFromSupabase(function(remote,remoteDate){
+    if(remote&&remoteDate===today){
+      S=remote;
+      localStorage.setItem(KS,JSON.stringify(S));
+      localStorage.setItem(KD,today);
+      render();
+      toast('Loaded from cloud ✓');
+    } else {
+      showWelcome();
+    }
+  });
 });
 
 function carryForward(yesterday){
@@ -375,16 +479,62 @@ function parseEmail(text){
   localStorage.setItem(KD, S.date);
 
   // Find section boundaries
-  // Extract and store raw TOMORROW lines before main parse
-  var tomorrowLines=[];
+  // Parse date-aware MEETINGS and TOMORROW lines from raw digest
+  var todayDate=todayStr(); // YYYY-MM-DD
+  var tomorrowDate=new Date(); tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  var tomorrowDateStr=tomorrowDate.toISOString().slice(0,10);
+
+  var todayMeetings=[], tomorrowMeetings=[];
   text.split('\n').forEach(function(line){
-    if(/^TOMORROW:/i.test(line.trim())){
-      var parts=line.replace(/^TOMORROW:\s*/i,'').trim().split(/\s*\|\s*/);
-      var dt=parts[0]||''; var title=parts[1]||parts[0]||'';
-      if(title&&title.length>2)tomorrowLines.push({time:dt,title:title});
+    line=line.trim();
+    var isMtg=/^MEETINGS?:/i.test(line);
+    var isTom=/^TOMORROW:/i.test(line);
+    if(!isMtg&&!isTom)return;
+    var raw=line.replace(/^(MEETINGS?|TOMORROW):\s*/i,'').trim();
+    // Format: Title - ISO_DATE or ISO_DATE | Title
+    var dt='', title='';
+    // Try "Title - 2026-06-26T..."
+    var m1=raw.match(/^(.+?)\s*[-–]\s*(\d{4}-\d{2}-\d{2}T[^\s]+)$/);
+    // Try "2026-06-26T... | Title"
+    var m2=raw.match(/^(\d{4}-\d{2}-\d{2}T[^\s|]+)\s*[|]?\s*(.+)$/);
+    if(m1){title=m1[1].trim();dt=m1[2].trim();}
+    else if(m2){dt=m2[1].trim();title=m2[2].trim();}
+    else{title=raw;}
+
+    var dateOnly=dt?dt.slice(0,10):'';
+    var entry={time:dt,title:title,dateOnly:dateOnly};
+
+    if(isTom||(dateOnly&&dateOnly===tomorrowDateStr)){
+      tomorrowMeetings.push(entry);
+    } else if(!dateOnly||dateOnly===todayDate){
+      todayMeetings.push(entry);
+    } else if(dateOnly>tomorrowDateStr){
+      // Future dates go to tomorrow section as well
+      tomorrowMeetings.push(entry);
     }
+    // dateOnly < todayDate = past meetings, ignore
   });
-  S.tomorrow=tomorrowLines;
+  S.tomorrow=tomorrowMeetings;
+
+  // Build a clean today-meetings string for the raw text / Gemini prompt
+  var todayMeetingsText='';
+  todayMeetings.forEach(function(m){
+    var t=m.time||'';
+    var timeDisp='';
+    if(t.includes('T')){
+      var tp=t.split('T')[1]||'';
+      var h=parseInt(tp.slice(0,2)),mi=tp.slice(3,5);
+      var ap=h>=12?'PM':'AM';h=h%12||12;
+      timeDisp=h+':'+mi+' '+ap;
+    }
+    todayMeetingsText+='MEETING: '+(timeDisp||t)+' — '+m.title+'\n';
+  });
+
+  // Inject cleaned meetings back into text for section parsing
+  // Replace the raw MEETINGS: lines with cleaned today-only version
+  var cleanedText=text.replace(/^MEETINGS?:[^\n]*/gim,'').replace(/^TOMORROW:[^\n]*/gim,'');
+  if(todayMeetingsText){cleanedText=todayMeetingsText+'\n'+cleanedText;}
+  text=cleanedText;
 
   var i1=text.search(/SUMMARY ANALYSIS|SECTION 1/i);
   var i2=text.search(/PROPOSED SCHEDULE|SECTION 2/i);
@@ -829,9 +979,22 @@ function openPasteModal(){document.getElementById('pasteInput').value='';openMod
 
 // ── YESTERDAY ──────────────────────────────────────────────────────────────
 function openYesterday(){
-  var archive=JSON.parse(localStorage.getItem(KA)||'{}');
+  // Load archive from Supabase for cross-device history
+  var localArch=JSON.parse(localStorage.getItem(KA)||'{}');
+  loadArchiveFromSupabase(function(remoteArch){
+    // Merge local and remote archives
+    var merged=Object.assign({},localArch,remoteArch);
+    showArchiveModal(merged);
+  });
+}
+function showArchiveModal(archive){
+  window._podArchive=archive;
   var dates=Object.keys(archive).sort().reverse();
-  if(!dates.length){document.getElementById('yesterdayContent').innerHTML='<div style="color:var(--text-light);font-size:13px;">No archive yet. Data saves automatically each morning when you open the app on a new day.</div>';openModal('yesterdayModal');return;}
+  if(!dates.length){
+    document.getElementById('yesterdayContent').innerHTML='<div style="color:var(--text-light);font-size:13px;padding:12px;">No archive yet. Data saves automatically each morning when you open the app on a new day.</div>';
+    openModal('yesterdayModal');
+    return;
+  }
   var html='<div style="margin-bottom:12px;"><select id="archDateSel" onchange="showArchiveDate(this.value)" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:13px;font-family:DM Sans,sans-serif;background:var(--cream);color:var(--text);outline:none;">';
   dates.forEach(function(d){html+='<option value="'+d+'">'+d+'</option>';});
   html+='</select></div><div id="archContent"></div>';
@@ -841,7 +1004,7 @@ function openYesterday(){
 }
 
 function showArchiveDate(date){
-  var archive=JSON.parse(localStorage.getItem(KA)||'{}');
+  var archive=window._podArchive||JSON.parse(localStorage.getItem(KA)||'{}');
   var day=archive[date];
   if(!day){document.getElementById('archContent').textContent='No data for '+date;return;}
   var html='<div style="font-size:13px;color:var(--text-mid);">';
@@ -896,7 +1059,20 @@ function doReanalyzeWithKey(key,newInfo){
 
   var prompt='You are helping Jessa, a dual-role nuclear program manager.\n';
   prompt+='She manages TerraPower (EPM, 22 nuclear systems) and X-Energy (Assistant Chemistry Manager, XE-100 HTGR).\n';
-  prompt+='Current time: '+timeStr+'. Work day: 08:00-17:00 ONLY. Nothing before 8 AM or after 5 PM.\n\n';
+  // Build locked meetings list from today's parsed meetings
+  var lockedMtgs=S.tomorrow?[]:[];
+  // Get today's meetings from tasks labeled 'meeting'
+  var todayMtgTasks=(S.tasks||[]).filter(function(t){return t.label==='meeting'&&t.time;});
+  var lockedMtgText='';
+  if(todayMtgTasks.length){
+    lockedMtgText='TODAY\'S LOCKED MEETINGS (DO NOT MOVE OR REMOVE THESE):\n';
+    todayMtgTasks.forEach(function(t){lockedMtgText+=t.time+' — '+t.title+'\n';});
+    lockedMtgText+='\n';
+  }
+
+  prompt+='Current time: '+timeStr+'. Work day: 08:00-17:00 ONLY. Nothing before 8 AM or after 5 PM.\n';
+  prompt+='Today\'s date: '+todayStr()+'. Schedule ONLY events dated '+todayStr()+'.\n\n';
+  if(lockedMtgText)prompt+=lockedMtgText;
   prompt+='ORIGINAL PLAN OF DAY:\n'+(S.rawEmail||S.summary||'No original data.')+'\n\n';
   if(completed)prompt+='COMPLETED TODAY:\n'+completed+'\n\n';
   // Include carried-forward incomplete tasks for evaluation
@@ -1001,7 +1177,11 @@ function showLoading(msg){document.getElementById('loadingTxt').textContent=msg|
 function hideLoading(){document.getElementById('loading').classList.remove('show');}
 function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2400);}
 function startClock(){function t(){var n=new Date();var el=document.getElementById('hdrClock');if(el)el.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');}t();setInterval(t,1000);}
-function save(){localStorage.setItem(KS,JSON.stringify(S));}
+function save(){
+  localStorage.setItem(KS,JSON.stringify(S));
+  localStorage.setItem(KD,S.date||todayStr());
+  syncToSupabase();
+}
 function todayStr(){return new Date().toISOString().slice(0,10);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
