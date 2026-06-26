@@ -72,7 +72,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .now-dot{position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--rose);}
 
 /* Task blocks on timeline */
-.tl-block{position:absolute;left:50px;right:8px;border-radius:8px;cursor:default;user-select:none;overflow:hidden;transition:box-shadow 0.15s,opacity 0.15s;z-index:5;}
+.tl-block{position:absolute;left:50px;right:8px;border-radius:8px;cursor:default;user-select:none;overflow:hidden;transition:box-shadow 0.15s,opacity 0.15s;z-index:5;contain:strict;}
 .tl-block:active{cursor:grabbing;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:20;}
 .tl-block.dragging{opacity:0.7;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,0.2);}
 .tl-block.done{opacity:0.45;}
@@ -85,10 +85,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tl-block.lprep   {background:var(--prep-pale);  border-left:3px solid var(--prep);}
 .tl-block.lempty  {background:#F5F5F5;            border-left:3px solid #CCC;}
 
-.tl-block-inner{padding:4px 8px 4px 20px;height:100%;display:flex;flex-direction:column;justify-content:flex-start;gap:1px;overflow:hidden;box-sizing:border-box;}
-.tl-time{font-size:9px;color:var(--text-light);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
-.tl-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;}
-.tl-tag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;text-transform:uppercase;align-self:flex-start;margin-top:1px;}
+.tl-block-inner{padding:3px 6px 3px 20px;height:100%;width:100%;display:flex;flex-direction:column;justify-content:flex-start;gap:0px;overflow:hidden;box-sizing:border-box;position:relative;}
+.tl-time{font-size:9px;color:var(--text-light);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;max-width:100%;}
+.tl-title{font-size:11px;font-weight:500;color:var(--text);line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;max-width:100%;}
+.tl-tag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:6px;text-transform:uppercase;align-self:flex-start;flex-shrink:0;max-width:fit-content;}
 .tag-tp    {background:var(--tp-pale);   color:var(--tp);}
 .tag-xe    {background:var(--xe-pale);   color:var(--xe);}
 .tag-both  {background:var(--both-pale); color:var(--both);}
@@ -97,17 +97,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tag-empty {background:#EEE;color:#999;}
 
 /* Drag handle — vertical dots on LEFT edge of block */
-.tl-drag-handle{position:absolute;top:0;bottom:0;left:0;width:14px;cursor:grab;background:rgba(0,0,0,0.05);border-radius:6px 0 0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex-shrink:0;}
-.tl-drag-handle:active{cursor:grabbing;}
-.tl-drag-handle::before{content:'⋮';font-size:13px;color:rgba(0,0,0,0.3);line-height:1;}
-.tl-block-inner{padding-left:18px;} /* push content right of drag handle */
+.tl-drag-handle{position:absolute;top:0;bottom:0;left:0;width:16px;cursor:grab;background:rgba(0,0,0,0.07);border-radius:6px 0 0 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;z-index:2;}
+.tl-drag-handle:hover{background:rgba(0,0,0,0.14);}
+.tl-drag-handle:active{cursor:grabbing;background:rgba(0,0,0,0.18);}
+.tl-drag-handle::before{content:'• • •';font-size:8px;color:rgba(0,0,0,0.45);letter-spacing:0px;writing-mode:vertical-rl;line-height:1.2;}
+.tl-block-inner{padding-left:20px;padding-right:6px;} /* push content right of drag handle */
 
 /* Resize handle at bottom of block */
 .tl-resize{position:absolute;bottom:0;left:0;right:0;height:6px;cursor:ns-resize;background:transparent;}
 .tl-resize:hover{background:rgba(0,0,0,0.08);}
 
 /* Done checkbox on block */
-.tl-check{position:absolute;top:4px;right:4px;width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:transparent;background:transparent;flex-shrink:0;}
+.tl-check{position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(0,0,0,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:transparent;background:transparent;z-index:3;}
 .tl-check.done{background:var(--tp);border-color:var(--tp);color:#fff;}
 
 /* Edit panel (appears below selected block) */
