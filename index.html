@@ -84,7 +84,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tl-block.lboth   {background:rgba(184,154,173,0.25);  border-left:3px solid var(--both);}
 .tl-block.lmeeting{background:rgba(90,127,168,0.25);border-left:3px solid var(--meeting);}
 .tl-block.lprep   {background:rgba(196,128,138,0.25);  border-left:3px solid var(--prep);}
-.tl-block.lempty  {background:rgba(200,200,200,0.25);  border-left:3px solid #CCC;}
+.tl-block.lempty        {background:rgba(200,200,200,0.25);border-left:3px solid #CCC;}
+.tl-block.lplanner-tp  {background:rgba(107,158,120,0.2); border-left:3px solid var(--tp);border-left-style:dashed;}
+.tl-block.lplanner-xe  {background:rgba(122,146,176,0.2); border-left:3px solid var(--xe);border-left-style:dashed;}
 
 .tl-block-inner{position:absolute;top:0;left:16px;right:0;bottom:8px;padding:2px 4px 0 4px;overflow:hidden;display:flex;flex-direction:column;}
 .tl-time{font-size:9px;color:var(--text-light);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;line-height:1.4;}
@@ -124,7 +126,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tag-pill-btn.active-xe    {background:var(--xe-pale);   border-color:var(--xe);   color:var(--xe);}
 .tag-pill-btn.active-both  {background:var(--both-pale); border-color:var(--both); color:var(--both);}
 .tag-pill-btn.active-meeting{background:var(--meeting-pale);border-color:var(--meeting);color:var(--meeting);}
-.tag-pill-btn.active-prep  {background:var(--prep-pale); border-color:var(--prep); color:var(--prep);}
+.tag-pill-btn.active-prep       {background:var(--prep-pale); border-color:var(--prep); color:var(--prep);}
+.tag-pill-btn.active-planner-tp {background:var(--tp-pale);   border-color:var(--tp);   color:var(--tp);   border-style:dashed;}
+.tag-pill-btn.active-planner-xe {background:var(--xe-pale);   border-color:var(--xe);   color:var(--xe);   border-style:dashed;}
 .tag-pill-btn.active-empty {background:#EEE;border-color:#CCC;color:#999;}
 
 /* Quick add at bottom of timeline */
@@ -364,8 +368,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod_gemini_key';
-var LABELS=['tp','xe','both','meeting','prep',''];
-var LABEL_NAMES={tp:'TP',xe:'XE',both:'Both',meeting:'Meeting',prep:'Prep','':'—'};
+var LABELS=['tp','xe','both','meeting','prep','planner-tp','planner-xe',''];
+var LABEL_NAMES={tp:'TP',xe:'XE',both:'Both',meeting:'Meeting',prep:'Prep','planner-tp':'Planner·TP','planner-xe':'Planner·XE','':'—'};
 var START_HOUR=7, END_HOUR=18; // 8 AM to 5 PM
 var activeFilter='all';
 var selectedId=null; // currently selected block id
@@ -645,8 +649,8 @@ function render(){
 
   // Filter bar
   html+='<div class="filter-bar">';
-  ['all','tp','xe','meeting','prep','both','done'].forEach(function(f){
-    var labels={all:'All',tp:'🟢 TP',xe:'🔵 XE',meeting:'📅 Meeting',prep:'📋 Prep',both:'⚡ Both',done:'✓ Done'};
+  ['all','tp','xe','meeting','prep','both','planner-tp','planner-xe','done'].forEach(function(f){
+    var labels={all:'All',tp:'🟢 TP',xe:'🔵 XE',meeting:'📅 Meeting',prep:'📋 Prep',both:'⚡ Both','planner-tp':'📌 Planner TP','planner-xe':'📌 Planner XE',done:'✓ Done'};
     var active=activeFilter===f;
     html+='<button class="fchip'+(active?' f-'+f:'')+'" onclick="setFilter(\''+f+'\',this)">'+labels[f]+'</button>';
   });
@@ -887,6 +891,28 @@ function renderTimeline(){
   });
 
   html+='</div>'; // close tlGrid — NO untimed blocks inside grid
+
+  // Completed tasks — collapsible section
+  var completedTasks=all.filter(function(t){return t.done;});
+  if(completedTasks.length){
+    html+='<div style="border-top:1px solid var(--border);margin-top:4px;">';
+    html+='<div id="completedHdr" style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 44px;cursor:pointer;user-select:none;" onclick="togCompleted()">';
+    html+='<span style="font-size:10px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;flex:1;">✓ Completed ('+completedTasks.length+')</span>';
+    html+='<span id="completedArr" style="font-size:10px;color:var(--text-light);transform:rotate(180deg);display:inline-block;transition:transform 0.2s;">▾</span>';
+    html+='</div>';
+    html+='<div id="completedBody" style="display:none;">';
+    completedTasks.forEach(function(t){
+      var lbl=t.label||'empty';
+      var accent=lbl==='tp'?'var(--tp)':lbl==='xe'?'var(--xe)':lbl==='meeting'?'var(--meeting)':lbl==='prep'?'var(--prep)':lbl.startsWith('planner')?'var(--'+lbl.replace('planner-','')+')'  :'#bbb';
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 8px 5px 50px;border-bottom:1px solid var(--border);opacity:0.6;">';
+      html+='<span style="font-size:11px;text-decoration:line-through;color:var(--text-mid);flex:1;">'+esc(t.title)+'</span>';
+      if(t.time)html+='<span style="font-size:9px;color:var(--text-light);flex-shrink:0;">'+formatTime12(t.time)+'</span>';
+      html+='<span class="tl-tag tag-'+lbl+'" style="flex-shrink:0;">'+lbl.toUpperCase()+'</span>';
+      html+='<button data-tid="'+t.id+'" onclick="uncompleteTask(this.dataset.tid)" style="background:none;border:none;font-size:10px;color:var(--text-light);cursor:pointer;flex-shrink:0;" title="Mark incomplete">↩</button>';
+      html+='</div>';
+    });
+    html+='</div></div>';
+  }
 
   // Unscheduled tasks — rendered in normal flow BELOW the time grid
   if(unscheduled.length){
@@ -1335,11 +1361,11 @@ function doReanalyzeWithKey(key,newInfo){
     S.tasks=lockedTimed.concat(newTimedTasks);
     S.manual=[];
 
-    // Update analysis sections from Gemini
-    S.summary=newS.summary||S.summary;
-    S.priorities=newS.priorities||S.priorities;
-    S.risks=newS.risks||S.risks;
-    S.decisions=newS.decisions||S.decisions;
+    // Update analysis sections from Gemini — only replace if Gemini returned content
+    if(newS.summary&&newS.summary.length>10)S.summary=newS.summary;
+    if(newS.priorities&&newS.priorities.length>0)S.priorities=newS.priorities;
+    if(newS.risks&&newS.risks.length>0)S.risks=newS.risks;
+    if(newS.decisions&&newS.decisions.length>0)S.decisions=newS.decisions;
     S.rawEmail=result;
 
     // Merge deferred
@@ -1485,7 +1511,9 @@ function scanImage(){
       var title=titleM[1].trim();
       if(!title||title.length<3)return;
       if(!S.manual)S.manual=[];
-      S.manual.push({id:Date.now()+Math.random(),time:'',endTime:'',label:imgRole,labels:[imgRole],title:title,done:false,note:line,carried:false,src:'image-scan'});
+      var plannerLabel='planner-'+imgRole;
+      if(imgRole==='both')plannerLabel='planner-tp'; // default to tp for both
+      S.manual.push({id:Date.now()+Math.random(),time:'',endTime:'',label:plannerLabel,labels:[plannerLabel,imgRole],title:title,done:false,note:line,carried:false,src:'image-scan'});
       added++;
     });
 
@@ -1520,6 +1548,24 @@ function scanImage(){
     status.textContent='Error: '+e.message;
     status.style.color='var(--rose)';
   });
+}
+
+function togCompleted(){
+  var body=document.getElementById('completedBody');
+  var arr=document.getElementById('completedArr');
+  if(!body)return;
+  var hidden=body.style.display==='none';
+  body.style.display=hidden?'block':'none';
+  if(arr)arr.style.transform=hidden?'rotate(0deg)':'rotate(180deg)';
+}
+
+function uncompleteTask(id){
+  var t=findTask(id);
+  if(!t)return;
+  t.done=false;
+  delete t.completedAt;
+  save();render();
+  toast('Marked active');
 }
 
 function hardReset(){
