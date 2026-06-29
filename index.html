@@ -463,7 +463,7 @@ function carryForward(yest){
   // Deferred → backlog
   var bl=S.backlog||[];var seen={};bl.forEach(function(b){seen[b.title.toLowerCase()]=true;});
   (yest.deferred||[]).forEach(function(d){
-    if(!d||d.trim().length<3)return;
+    if(!d)return;var dTxt=typeof d==='object'?d.text||'':d;if(!dTxt||dTxt.trim().length<3)return;
     var t=d.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim();
     if(!seen[t.toLowerCase()]){bl.push({id:Date.now()+Math.random(),title:t,label:/terrapower/i.test(d)?'tp':/x-energy/i.test(d)?'xe':'',note:'',addedDate:localStorage.getItem(KD)||''});seen[t.toLowerCase()]=true;}
   });
@@ -559,7 +559,7 @@ function parseEmail(text){
   // Deferred — merge
   var merged=(S.deferred||[]).concat(newDeferred);
   var seen={};
-  S.deferred=merged.filter(function(d){if(!d||d.trim().length<3||d.trim()==='---')return false;var k=d.toLowerCase();if(seen[k])return false;seen[k]=true;return true;});
+  S.deferred=merged.filter(function(d){var dStr=typeof d==='object'?d.text||'':d;if(!dStr||dStr.trim().length<3||dStr.trim()==='---')return false;var k=dStr.toLowerCase().trim();if(seen[k])return false;seen[k]=true;return true;});
 
   // Priorities
   S.priorities=[];
@@ -695,7 +695,7 @@ function render(){
   // Deferred
   // Split deferred into active and completed
   var allDef=S.deferred||[];
-  var activeDef=allDef.filter(function(d){return d&&typeof d==='object'?!d.done:d&&d.trim().length>2&&d.trim()!=='---';});
+  var activeDef=allDef.filter(function(d){return d&&typeof d==='object'?!d.done:(typeof d==='string'&&d.trim().length>2)&&d.trim()!=='---';});
   var doneDef=allDef.filter(function(d){return d&&typeof d==='object'&&d.done;});
   // Normalize string deferred to objects
   S.deferred=allDef.map(function(d,i){
@@ -1290,7 +1290,7 @@ function doReanalyzeWithKey(key,newInfo){
   p+='--- SECTION 4: RISK FLAGS ---\nRED [TP]: ...\nRED [XE]: ...\nYELLOW [TP]: ...\nYELLOW [XE]: ...\nGREEN [TP]: ...\nGREEN [XE]: ...\n\n';
   p+='--- SECTION 5: KEY DECISIONS ---\nTerraPower Decision Today: ...\nX-Energy Decision Today: ...';
 
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key='+key,{
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{maxOutputTokens:3000,temperature:0.2}})
   }).then(function(r){return r.json();}).then(function(data){
@@ -1303,7 +1303,7 @@ function doReanalyzeWithKey(key,newInfo){
     (S.deferred||[]).forEach(function(d){if(!seen[d.toLowerCase()]){od.push(d);seen[d.toLowerCase()]=true;}});
     S.manual=om;S.deferred=od;S.backlog=obl;S.rawEmail=result;
     save();render();toast('Re-analyzed ✓');setSyncDot('green');
-  }).catch(function(e){hideLoading();toast('Network error: '+e.message);});
+  }).catch(function(e){hideLoading();toast('Error: '+e.message);console.error('Re-analyze error:',e);});
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
