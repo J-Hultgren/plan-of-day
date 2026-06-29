@@ -896,9 +896,9 @@ function renderTimeline(){
   var completedTasks=all.filter(function(t){return t.done;});
   if(completedTasks.length){
     html+='<div style="border-top:1px solid var(--border);margin-top:4px;">';
-    html+='<div id="completedHdr" style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 44px;cursor:pointer;user-select:none;" onclick="togCompleted()">';
-    html+='<span style="font-size:10px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;flex:1;">✓ Completed ('+completedTasks.length+')</span>';
-    html+='<span id="completedArr" style="font-size:10px;color:var(--text-light);transform:rotate(180deg);display:inline-block;transition:transform 0.2s;">▾</span>';
+    html+='<div id="completedHdr" style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 44px;cursor:pointer;user-select:none;background:var(--cream);border-radius:8px;" onclick="togCompleted()">';
+    html+='<span style="font-size:10px;color:var(--tp);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;flex:1;">✓ Completed ('+completedTasks.length+') — tap to expand</span>';
+    html+='<span id="completedArr" style="font-size:10px;color:var(--text-light);display:inline-block;transition:transform 0.2s;">▾</span>';
     html+='</div>';
     html+='<div id="completedBody" style="display:none;">';
     completedTasks.forEach(function(t){
@@ -1553,10 +1553,17 @@ function scanImage(){
 function togCompleted(){
   var body=document.getElementById('completedBody');
   var arr=document.getElementById('completedArr');
+  var hdr=document.getElementById('completedHdr');
   if(!body)return;
   var hidden=body.style.display==='none';
   body.style.display=hidden?'block':'none';
-  if(arr)arr.style.transform=hidden?'rotate(0deg)':'rotate(180deg)';
+  if(arr)arr.style.transform=hidden?'rotate(180deg)':'rotate(0deg)';
+  // Update header text
+  var span=hdr&&hdr.querySelector('span');
+  if(span){
+    var n=body.querySelectorAll('[data-tid]').length;
+    span.textContent=hidden?'✓ Completed ('+n+') — tap to collapse':'✓ Completed ('+n+') — tap to expand';
+  }
 }
 
 function uncompleteTask(id){
