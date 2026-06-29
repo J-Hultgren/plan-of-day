@@ -57,7 +57,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .timeline-wrap{background:var(--warm);border-radius:14px;overflow:hidden;box-shadow:0 2px 10px var(--shadow);}
 .timeline-header{padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .timeline-header h2{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:400;color:var(--text);}
-.timeline-body{position:relative;overflow-y:auto;max-height:700px;}
+.timeline-body{position:relative;overflow-y:auto;max-height:calc(100vh - 280px);min-height:500px;}
 .timeline-grid{position:relative;min-height:calc(var(--hour-h) * 9); /* 08:00-17:00 = 9 hrs */}
 
 /* Hour rows */
@@ -732,11 +732,11 @@ function renderTimeline(){
   var totalMins=(END_HOUR-START_HOUR)*60;
   // grid height calculated below
 
-  var html='<div class="timeline-grid" id="tlGrid" style="height:'+(totalMins/60*80)+'px;" onclick="tlGridClick(event)">';
+  var html='<div class="timeline-grid" id="tlGrid" style="height:'+(totalMins/60*100)+'px;" onclick="tlGridClick(event)">';
 
   // Hour labels and lines
   for(var h=START_HOUR;h<=END_HOUR;h++){
-    var hTop=((h-START_HOUR)*80);
+    var hTop=((h-START_HOUR)*100);
     // Label sits centered on the line, shifted up by half its height (~7px)
     html+='<div style="position:absolute;top:'+(hTop-7)+'px;left:0;width:44px;text-align:right;padding-right:6px;font-size:10px;color:var(--text-light);line-height:14px;pointer-events:none;z-index:2;">'+(h<=12?h:h-12)+(h<12?'a':h===12?'p':'p')+'</div>';
     // Horizontal line at EXACT top position
@@ -802,8 +802,8 @@ function renderTimeline(){
     var startMins=timeToMinutes(t.time);
     var endMins=t.endTime?timeToMinutes(t.endTime):startMins+30;
     endMins=Math.min(endMins,END_HOUR*60);
-    var top=((startMins-START_HOUR*60)/60*80);
-    var height=Math.max(((endMins-startMins)/60*80),16); // minimum 16px = ~12min
+    var top=((startMins-START_HOUR*60)/60*100);
+    var height=Math.max(((endMins-startMins)/60*100),16); // minimum 16px = ~12min
     var lbl=t.label||'empty';
     var meta=taskMeta[t.id]||{col:0,totalCols:1};
     var col=meta.col, total=meta.totalCols;
@@ -813,14 +813,26 @@ function renderTimeline(){
     html+='<div class="tl-block l'+lbl+(t.done?' done':'')+(t.id===selectedId?' selected':'')+'" id="tlb-'+t.id+'" data-id="'+t.id+'" style="top:'+top+'px;height:'+height+'px;max-height:'+height+'px;left:'+blockL+';width:'+blockW+';right:auto;" onclick="tlBlockClick(event,this.dataset.id)">';
     html+='<div class="tl-drag-handle" title="Drag to move"><span></span><span></span><span></span></div>';
     html+='<div class="tl-check'+(t.done?' done':'')+'" onclick="event.stopPropagation();togTask(this.closest(\'.tl-block\').dataset.id)">'+( t.done?'✓':'')+'</div>';
-    html+='<div class="tl-block-inner">';
-    if(height>24)html+='<div class="tl-time">'+formatTime12(t.time)+(t.endTime?' – '+formatTime12(t.endTime):'')+'</div>';
     var allLbls=Array.isArray(t.labels)&&t.labels.length?t.labels:[lbl];
     var tagTxt=allLbls.filter(function(l){return l&&l!=='empty';}).map(function(l){return l.toUpperCase();}).join(' · ');
-    html+='<div style="display:flex;align-items:center;gap:4px;overflow:hidden;flex-shrink:0;">';
-    html+='<span class="tl-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(t.title)+'</span>';
-    if(tagTxt)html+='<span class="tl-tag tag-'+lbl+'" style="flex-shrink:0;">'+tagTxt+'</span>';
-    html+='</div>';
+    html+='<div class="tl-block-inner">';
+    if(height>=50){
+      // Full: time + title + tag
+      html+='<div class="tl-time">'+formatTime12(t.time)+(t.endTime?' – '+formatTime12(t.endTime):'')+'</div>';
+      html+='<div style="display:flex;align-items:center;gap:4px;overflow:hidden;flex-shrink:0;">';
+      html+='<span class="tl-title" style="flex:1;min-width:0;">'+esc(t.title)+'</span>';
+      if(tagTxt)html+='<span class="tl-tag tag-'+lbl+'" style="flex-shrink:0;">'+tagTxt+'</span>';
+      html+='</div>';
+    } else if(height>=30){
+      // Medium: title + tag, no time
+      html+='<div style="display:flex;align-items:center;gap:4px;overflow:hidden;flex-shrink:0;">';
+      html+='<span class="tl-title" style="flex:1;min-width:0;font-size:10px;">'+esc(t.title)+'</span>';
+      if(tagTxt)html+='<span class="tl-tag tag-'+lbl+'" style="flex-shrink:0;font-size:7px;">'+tagTxt+'</span>';
+      html+='</div>';
+    } else {
+      // Tiny: title only, smallest font
+      html+='<span style="font-size:9px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:'+height+'px;padding:0 2px;">'+esc(t.title)+'</span>';
+    }
     html+='</div>';
     html+='<div class="tl-resize" data-id="'+t.id+'" onmousedown="startResize(event,this.dataset.id)"></div>';
     html+='</div>';
@@ -878,7 +890,7 @@ function initTimeline(){
       if(newEnd>END_HOUR*60){newEnd=END_HOUR*60;newStart=newEnd-dragState.duration;}
       var block=document.getElementById('tlb-'+dragState.id);
       if(block){
-        block.style.top=((newStart-START_HOUR*60)/60*80)+'px';
+        block.style.top=((newStart-START_HOUR*60)/60*100)+'px';
         var th=block.querySelector('.tl-time');
         if(th)th.textContent=formatTime12(minutesToTime(newStart))+' – '+formatTime12(minutesToTime(newEnd));
       }
@@ -889,7 +901,7 @@ function initTimeline(){
       var deltaMins=Math.round(deltaY/56*60/15)*15;
       var newEnd=Math.min(END_HOUR*60,Math.max(resizeState.origStart+15,resizeState.origEnd+deltaMins));
       var block=document.getElementById('tlb-'+resizeState.id);
-      if(block){block.style.height=Math.max(22,((newEnd-resizeState.origStart)/60*80))+'px';}
+      if(block){block.style.height=Math.max(22,((newEnd-resizeState.origStart)/60*100))+'px';}
       resizeState.newEnd=newEnd;
     }
   });
@@ -935,7 +947,7 @@ function initTimeline(){
     var newEnd=newStart+dragState.duration;
     if(newEnd>END_HOUR*60){newEnd=END_HOUR*60;newStart=newEnd-dragState.duration;}
     var block=document.getElementById('tlb-'+dragState.id);
-    if(block){block.style.top=((newStart-START_HOUR*60)/60*80)+'px';}
+    if(block){block.style.top=((newStart-START_HOUR*60)/60*100)+'px';}
     dragState.newStart=newStart;dragState.newEnd=newEnd;
   },{passive:false});
 
@@ -1030,7 +1042,7 @@ function updateNowLine(){
   var h=now.getHours(),m=now.getMinutes();
   if(h<START_HOUR||h>=END_HOUR){document.getElementById('nowLine')&&(document.getElementById('nowLine').style.display='none');return;}
   var mins=(h-START_HOUR)*60+m;
-  var top=mins/60*80;
+  var top=mins/60*100;
   var line=document.getElementById('nowLine');
   if(line){line.style.display='block';line.style.top=top+'px';}
 }
@@ -1060,8 +1072,8 @@ function updTask(id,field,val){
     if(block&&t.time){
       var startMins=timeToMinutes(t.time);
       var endMins=t.endTime?timeToMinutes(t.endTime):startMins+30;
-      block.style.top=((startMins-START_HOUR*60)/60*80)+'px';
-      block.style.height=Math.max(22,((endMins-startMins)/60*80))+'px';
+      block.style.top=((startMins-START_HOUR*60)/60*100)+'px';
+      block.style.height=Math.max(22,((endMins-startMins)/60*100))+'px';
       var th=block.querySelector('.tl-time');
       if(th)th.textContent=formatTime12(t.time)+(t.endTime?' – '+formatTime12(t.endTime):'');
     }
@@ -1314,8 +1326,8 @@ function reflowColumns(){
     if(endMins<=startMins)endMins=startMins+30;
     endMins=Math.min(endMins,END_HOUR*60);
 
-    var top=((startMins-START_HOUR*60)/60*80);
-    var height=Math.max(16,((endMins-startMins)/60*80));
+    var top=((startMins-START_HOUR*60)/60*100);
+    var height=Math.max(20,((endMins-startMins)/60*100));
     var blockW=total>1?'calc('+timelineW+' / '+total+' - 3px)':timelineW;
     var blockL=total>1?'calc(50px + '+col+' * ('+timelineW+' / '+total+') + '+(col>0?'1':'0')+'px)':'50px';
 
