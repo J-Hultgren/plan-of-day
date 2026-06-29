@@ -302,7 +302,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   <div class="modal">
     <h3>⚡ Re-analyze</h3>
     <div style="margin-bottom:8px;">
-      <div class="tl-edit-label">Gemini API Key</div>
+      <div class="tl-edit-label"> API Key</div>
       <input type="text" id="apiKeyInput" placeholder="AIzaSy..." style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 11px;font-size:13px;font-family:DM Sans,sans-serif;color:var(--text);background:var(--cream);outline:none;margin-bottom:4px;">
       <div style="font-size:10px;color:var(--text-light);">Saved in browser only</div>
     </div>
@@ -363,7 +363,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
-var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod_gemini_key';
+var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod__key';
 var LABELS=['tp','xe','both','meeting','prep',''];
 var LABEL_NAMES={tp:'TP',xe:'XE',both:'Both',meeting:'Meeting',prep:'Prep','':'—'};
 var START_HOUR=7, END_HOUR=18; // 8 AM to 5 PM
@@ -1258,8 +1258,8 @@ function showArchiveDate(date){
 
 // ── RE-ANALYZE ─────────────────────────────────────────────────────────────
 function openReanalyze(){var k=localStorage.getItem(KG)||'';document.getElementById('apiKeyInput').value=k;document.getElementById('newInfoInput').value='';openModal('reanalyzeModal');}
-function inlineReanalyze(){var info=document.getElementById('inlineInfo');var k=localStorage.getItem(KG);if(!k){k=prompt('Enter your Gemini API key:');if(!k)return;localStorage.setItem(KG,k.trim());}closeAllModals();doReanalyzeWithKey(k.trim(),info?info.value:'');}
-function doReanalyze(){var k=document.getElementById('apiKeyInput').value.trim();var info=document.getElementById('newInfoInput').value;if(!k){toast('Please enter your Gemini API key');return;}localStorage.setItem(KG,k);closeAllModals();doReanalyzeWithKey(k,info);}
+function inlineReanalyze(){var info=document.getElementById('inlineInfo');var k=localStorage.getItem(KG);if(!k){k=prompt('Enter your  API key:');if(!k)return;localStorage.setItem(KG,k.trim());}closeAllModals();doReanalyzeWithKey(k.trim(),info?info.value:'');}
+function doReanalyze(){var k=document.getElementById('apiKeyInput').value.trim();var info=document.getElementById('newInfoInput').value;if(!k){toast('Please enter your  API key');return;}localStorage.setItem(KG,k);closeAllModals();doReanalyzeWithKey(k,info);}
 
 function doReanalyzeWithKey(key,newInfo){
   showLoading();
@@ -1290,7 +1290,7 @@ function doReanalyzeWithKey(key,newInfo){
   p+='--- SECTION 4: RISK FLAGS ---\nRED [TP]: ...\nRED [XE]: ...\nYELLOW [TP]: ...\nYELLOW [XE]: ...\nGREEN [TP]: ...\nGREEN [XE]: ...\n\n';
   p+='--- SECTION 5: KEY DECISIONS ---\nTerraPower Decision Today: ...\nX-Energy Decision Today: ...';
 
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key,{
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{maxOutputTokens:3000,temperature:0.2}})
   }).then(function(r){return r.json();}).then(function(data){
@@ -1403,7 +1403,7 @@ function scanImage(){
   p2+='Only include real items visible in the image.';
 
     // Use Gemini vision API
-  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key;
+  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key;
   fetch(url,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
