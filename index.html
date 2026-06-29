@@ -1308,20 +1308,56 @@ function doReanalyzeWithKey(key,newInfo){
     hideLoading();
     if(!data||!data.candidates||!data.candidates[0]||!data.candidates[0].content){toast('Re-analysis failed');return;}
     var result=data.candidates[0].content.parts[0].text;
-    var om=S.manual||[],od=S.deferred||[],obl=S.backlog||[];
+
+    // PRESERVE all existing timed tasks — never let re-analyze wipe them
+    var lockedTimed=((S.tasks||[]).concat(S.manual||[])).filter(function(t){
+      return t.time&&t.time.length>0;
+    });
+    var oldDeferred=S.deferred||[];
+    var oldBacklog=S.backlog||[];
+
+    // Parse Gemini's new schedule into a temp object
+    var tempS={tasks:[],manual:[],deferred:[],priorities:[],risks:[],decisions:[],summary:'',rawEmail:''};
+    var savedS=S;
+    S=tempS;
     parseEmail(result);
+    var newS=S;
+    S=savedS;
+
+    // Merge: keep locked timed tasks, add any NEW timed tasks from Gemini
+    var lockedIds={};
+    lockedTimed.forEach(function(t){lockedIds[t.title.toLowerCase().trim()]=true;});
+    var newTimedTasks=(newS.tasks||[]).filter(function(t){
+      return t.time&&t.time.length>0&&!lockedIds[t.title.toLowerCase().trim()];
+    });
+
+    // Final task list = locked original timed + new tasks from Gemini
+    S.tasks=lockedTimed.concat(newTimedTasks);
+    S.manual=[];
+
+    // Update analysis sections from Gemini
+    S.summary=newS.summary||S.summary;
+    S.priorities=newS.priorities||S.priorities;
+    S.risks=newS.risks||S.risks;
+    S.decisions=newS.decisions||S.decisions;
+    S.rawEmail=result;
+
+    // Merge deferred
     var seen={};
-    od.forEach(function(d){var txt=typeof d==='object'?d.text||'':String(d||'');seen[txt.toLowerCase().trim()]=true;});
-    (S.deferred||[]).forEach(function(d){
+    var mergedDef=[];
+    (oldDeferred||[]).concat(newS.deferred||[]).forEach(function(d){
       var txt=typeof d==='object'?d.text||'':String(d||'');
       var k=txt.toLowerCase().trim();
-      if(k.length>2&&!seen[k]){od.push(d);seen[k]=true;}
+      if(k.length>2&&!seen[k]){seen[k]=true;mergedDef.push(typeof d==='object'?d:{text:txt,done:false,id:'def-'+Date.now()+Math.random()});}
     });
-    S.manual=om;S.deferred=od;S.backlog=obl;S.rawEmail=result;
+    S.deferred=mergedDef;
+    S.backlog=oldBacklog;
+    S.tomorrow=newS.tomorrow||S.tomorrow||[];
+
     window._pendingScans=0;
     var scanBtn=document.querySelector('[onclick="openImageModal()"]');
     if(scanBtn)scanBtn.textContent='🖼 Scan image';
-    save();render();toast('Re-analyzed ✓');setSyncDot('green');
+    save();render();toast('Re-analyzed ✓ — '+lockedTimed.length+' meetings preserved');setSyncDot('green');
   }).catch(function(e){hideLoading();toast('Error: '+e.message);console.error('Re-analyze error:',e);});
 }
 
