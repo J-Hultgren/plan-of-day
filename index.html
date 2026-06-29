@@ -302,7 +302,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   <div class="modal">
     <h3>⚡ Re-analyze</h3>
     <div style="margin-bottom:8px;">
-      <div class="tl-edit-label"> API Key</div>
+      <div class="tl-edit-label">Gemini API Key</div>
       <input type="text" id="apiKeyInput" placeholder="AIzaSy..." style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 11px;font-size:13px;font-family:DM Sans,sans-serif;color:var(--text);background:var(--cream);outline:none;margin-bottom:4px;">
       <div style="font-size:10px;color:var(--text-light);">Saved in browser only</div>
     </div>
@@ -363,7 +363,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
-var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod__key';
+var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod_gemini_key';
 var LABELS=['tp','xe','both','meeting','prep',''];
 var LABEL_NAMES={tp:'TP',xe:'XE',both:'Both',meeting:'Meeting',prep:'Prep','':'—'};
 var START_HOUR=7, END_HOUR=18; // 8 AM to 5 PM
@@ -1258,8 +1258,8 @@ function showArchiveDate(date){
 
 // ── RE-ANALYZE ─────────────────────────────────────────────────────────────
 function openReanalyze(){var k=localStorage.getItem(KG)||'';document.getElementById('apiKeyInput').value=k;document.getElementById('newInfoInput').value='';openModal('reanalyzeModal');}
-function inlineReanalyze(){var info=document.getElementById('inlineInfo');var k=localStorage.getItem(KG);if(!k){k=prompt('Enter your  API key:');if(!k)return;localStorage.setItem(KG,k.trim());}closeAllModals();doReanalyzeWithKey(k.trim(),info?info.value:'');}
-function doReanalyze(){var k=document.getElementById('apiKeyInput').value.trim();var info=document.getElementById('newInfoInput').value;if(!k){toast('Please enter your  API key');return;}localStorage.setItem(KG,k);closeAllModals();doReanalyzeWithKey(k,info);}
+function inlineReanalyze(){var info=document.getElementById('inlineInfo');var k=localStorage.getItem(KG);if(!k){k=prompt('Enter your Gemini API key:');if(!k)return;localStorage.setItem(KG,k.trim());}closeAllModals();doReanalyzeWithKey(k.trim(),info?info.value:'');}
+function doReanalyze(){var k=document.getElementById('apiKeyInput').value.trim();var info=document.getElementById('newInfoInput').value;if(!k){toast('Please enter your Gemini API key');return;}localStorage.setItem(KG,k);closeAllModals();doReanalyzeWithKey(k,info);}
 
 function doReanalyzeWithKey(key,newInfo){
   showLoading();
@@ -1271,12 +1271,23 @@ function doReanalyzeWithKey(key,newInfo){
   var carried=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.carried&&!t.done;}).map(function(t){return '- '+t.title;}).join('\n');
 
   // Get today's locked meetings from current tasks
-  var meetings=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.label==='meeting'&&t.time;}).map(function(t){return t.time+(t.endTime?'-'+t.endTime:'')+' — '+t.title;}).join('\n');
+  // Lock ALL timed tasks — not just meetings
+  var allTimed=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.time&&t.time.length>0;});
+  var meetings=allTimed.map(function(t){
+    var lbls=Array.isArray(t.labels)&&t.labels.length?t.labels.map(function(l){return l.toUpperCase();}).join('+'):(t.label||'').toUpperCase();
+    return t.time+(t.endTime?'-'+t.endTime:'')+' ['+lbls+'] '+t.title;
+  }).join('\n');
 
   var p='You are helping Jessa, dual-role nuclear PM (TerraPower EPM + X-Energy Chemistry).\n';
   p+='Current time: '+timeStr+' ('+tz+'). Work day: 08:00-17:00. Today: '+today+'.\n\n';
-  if(meetings)p+='LOCKED MEETINGS (DO NOT MOVE):\n'+meetings+'\n\n';
-  p+='ORIGINAL PLAN:\n'+(S.rawEmail||S.summary||'No original data.')+'\n\n';
+  if(meetings){
+    p+='================================================================\n';
+    p+='LOCKED MEETINGS — THESE ARE FIXED. DO NOT REMOVE. DO NOT MOVE. DO NOT SKIP.\n';
+    p+='Every single meeting below MUST appear in the schedule at its exact time.\n';
+    p+='================================================================\n';
+    p+=meetings+'\n\n';
+  }
+  p+='ORIGINAL PLAN (for context only — meetings above take priority):\n'+(S.rawEmail||S.summary||'No original data.')+'\n\n';
   if(completed)p+='COMPLETED TODAY:\n'+completed+'\n\n';
   if(carried)p+='INCOMPLETE FROM YESTERDAY:\n'+carried+'\n\n';
   if(backlog)p+='BACKLOG (schedule if room):\n'+backlog+'\n\n';
@@ -1307,6 +1318,9 @@ function doReanalyzeWithKey(key,newInfo){
       if(k.length>2&&!seen[k]){od.push(d);seen[k]=true;}
     });
     S.manual=om;S.deferred=od;S.backlog=obl;S.rawEmail=result;
+    window._pendingScans=0;
+    var scanBtn=document.querySelector('[onclick="openImageModal()"]');
+    if(scanBtn)scanBtn.textContent='🖼 Scan image';
     save();render();toast('Re-analyzed ✓');setSyncDot('green');
   }).catch(function(e){hideLoading();toast('Error: '+e.message);console.error('Re-analyze error:',e);});
 }
@@ -1456,12 +1470,13 @@ function scanImage(){
     status.textContent='';
 
     if(added>0){
-      // Prompt to re-analyze with new data
-      setTimeout(function(){
-        if(confirm('Added '+added+' tasks from your screenshot. Re-analyze your plan to schedule them?')){
-          openReanalyze();
-        }
-      },300);
+      // Show pending scan count in header — don't auto re-analyze
+      var pending=(window._pendingScans||0)+1;
+      window._pendingScans=pending;
+      // Update scan button to show pending count
+      var scanBtn=document.querySelector('[onclick="openImageModal()"]');
+      if(scanBtn)scanBtn.textContent='🖼 Scan image ('+pending+' pending)';
+      toast('✓ '+added+' tasks added — scan more images or tap Re-analyze when ready');
     }
   })
   .catch(function(e){
