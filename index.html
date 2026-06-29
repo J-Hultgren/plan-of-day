@@ -455,7 +455,9 @@ function carryForward(yest){
   [(yest.tasks||[]),(yest.manual||[])].forEach(function(list){
     list.forEach(function(t){
       if(t.label==='meeting'||t.label==='prep')return;
-      if(!t.done){var c=Object.assign({},t);c.carried=true;c.time='';c.endTime='';c.id=Date.now()+Math.random();c.src='carried';carried.push(c);}
+      if(!t.done){var c=Object.assign({},t);c.carried=true;c.time='';c.endTime='';c.id=Date.now()+Math.random();c.src='carried';
+        if(!c.labels||!c.labels.length)c.labels=c.label?[c.label]:[];
+        carried.push(c);}
     });
   });
   // Deferred → backlog
@@ -523,7 +525,17 @@ function parseEmail(text){
       if(NOISE.some(function(n){return title.toLowerCase().startsWith(n);}))return;
       var endT=m[2]||addMinutes(m[1],30);
       if(endT===m[1])endT=addMinutes(m[1],30); // zero-duration -> 30 min
-      newTasks.push({id:id++,time:m[1],endTime:endT,label:lbl,labels:lbl?[lbl]:[],title:title,done:false,note:'',carried:false,src:'parsed'});
+      // Build full labels array — include company tag from title suffix
+      var lbls=lbl?[lbl]:[];
+      if(/\(TP\)|\[TP\]/i.test(title)&&lbls.indexOf('tp')<0)lbls.push('tp');
+      if(/\(XE\)|\[XE\]/i.test(title)&&lbls.indexOf('xe')<0)lbls.push('xe');
+      if(/\(BOTH\)|\[BOTH\]/i.test(title)&&lbls.indexOf('both')<0)lbls.push('both');
+      // If label is meeting/prep but title suggests a company, add company label
+      if((lbl==='meeting'||lbl==='prep')&&lbls.length===1){
+        if(/terrapower|\btp\b/i.test(title))lbls.push('tp');
+        else if(/x.energy|\bxe\b/i.test(title))lbls.push('xe');
+      }
+      newTasks.push({id:id++,time:m[1],endTime:endT,label:lbl,labels:lbls,title:title,done:false,note:'',carried:false,src:'parsed'});
     } else {
       // Fallback: try "HH:MM-HH:MM Activity [LABEL]" or "HH:MM Activity" formats
       var m2=line.match(/^(\d{1,2}:\d{2})(?:\s*[-–]\s*(\d{1,2}:\d{2}))?\s+(.+)/);
