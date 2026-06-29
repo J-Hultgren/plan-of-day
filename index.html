@@ -1313,7 +1313,8 @@ function openImageModal(){
 function setImgRole(role){
   imgRole=role;
   ['tp','xe','both'].forEach(function(r){
-    var btn=document.getElementById('imgRole'+r.charAt(0).toUpperCase()+r.slice(1));
+    var idMap={'tp':'imgRoleTP','xe':'imgRoleXE','both':'imgRoleBoth'};
+    var btn=document.getElementById(idMap[r]);
     if(btn){
       if(r===role){
         btn.style.background=r==='tp'?'var(--tp-pale)':r==='xe'?'var(--xe-pale)':'var(--both-pale)';
