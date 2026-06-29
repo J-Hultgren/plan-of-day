@@ -247,6 +247,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
     <button class="btn btn-white" onclick="openReanalyze()">⚡ Re-analyze</button>
     <button class="btn btn-ghost" onclick="openAddModal()">+ Task</button>
     <button class="btn btn-ghost btn-sm" onclick="openPasteModal()">📋 Load email</button>
+  <button class="btn btn-ghost btn-sm" onclick="openImageModal()">🖼 Scan image</button>
   <button class="btn btn-ghost btn-sm" onclick="hardReset()" title="Clear today and reload from email">↺ Reset</button>
     <button class="btn btn-ghost btn-sm" onclick="openYesterday()">◷ Archive</button>
   </div>
@@ -312,6 +313,41 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
     <div style="display:flex;gap:8px;">
       <button class="btn btn-rose btn-full" onclick="doReanalyze()" style="flex:1;">Re-analyze now</button>
       <button class="btn btn-full" onclick="closeModal('reanalyzeModal')" style="background:var(--border);color:var(--text-mid);flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMAGE SCAN -->
+<div class="modal-ov" id="imageModal" onclick="if(event.target===this)closeModal('imageModal')">
+  <div class="modal">
+    <h3>🖼 Scan Screenshot</h3>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:12px;line-height:1.6;">Paste or upload a screenshot of your Planner board, Jira tasks, Teams messages, or Excel tracker. Claude will extract the tasks and add them to your Plan of Day.</p>
+    <div style="margin-bottom:10px;">
+      <div class="tl-edit-label">Which role is this for?</div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button id="imgRoleTP" class="btn btn-sm" onclick="setImgRole('tp')" style="background:var(--tp-pale);color:var(--tp);border:1.5px solid var(--tp);flex:1;">TerraPower</button>
+        <button id="imgRoleXE" class="btn btn-sm" onclick="setImgRole('xe')" style="background:var(--border);color:var(--text-mid);border:1.5px solid var(--border);flex:1;">X-Energy</button>
+        <button id="imgRoleBoth" class="btn btn-sm" onclick="setImgRole('both')" style="background:var(--border);color:var(--text-mid);border:1.5px solid var(--border);flex:1;">Both</button>
+      </div>
+    </div>
+    <div id="imgDropZone" style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:10px;transition:border-color 0.2s;background:var(--cream);" onclick="document.getElementById('imgFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--rose)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleImgDrop(event)">
+      <div style="font-size:32px;margin-bottom:8px;">📎</div>
+      <div style="font-size:13px;color:var(--text-mid);">Tap to choose image or drag and drop</div>
+      <div style="font-size:11px;color:var(--text-light);margin-top:4px;">PNG, JPG, screenshot — any format works</div>
+      <input type="file" id="imgFileInput" accept="image/*" style="display:none;" onchange="handleImgFile(this)">
+    </div>
+    <div id="imgPreview" style="display:none;margin-bottom:10px;text-align:center;">
+      <img id="imgPreviewEl" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--text-light);margin-top:4px;" id="imgFileName"></div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="tl-edit-label">Additional context (optional)</div>
+      <input type="text" id="imgContext" placeholder="e.g. These are overdue Jira tickets, prioritize EVST items" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 11px;font-size:13px;font-family:DM Sans,sans-serif;color:var(--text);background:var(--cream);outline:none;margin-top:4px;">
+    </div>
+    <div id="imgStatus" style="font-size:12px;color:var(--text-light);text-align:center;min-height:20px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-rose btn-full" onclick="scanImage()" id="imgScanBtn" style="flex:1;">Scan & Extract Tasks</button>
+      <button class="btn btn-full" onclick="closeModal('imageModal')" style="background:var(--border);color:var(--text-mid);flex:1;">Cancel</button>
     </div>
   </div>
 </div>
@@ -1259,6 +1295,164 @@ function doReanalyzeWithKey(key,newInfo){
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────
+// ── IMAGE SCAN ─────────────────────────────────────────────────────────────
+var imgRole='tp';
+var imgBase64=null;
+var imgMimeType='image/png';
+
+function openImageModal(){
+  imgBase64=null;imgMimeType='image/png';
+  document.getElementById('imgPreview').style.display='none';
+  document.getElementById('imgStatus').textContent='';
+  document.getElementById('imgContext').value='';
+  document.getElementById('imgDropZone').style.display='block';
+  setImgRole('tp');
+  openModal('imageModal');
+}
+
+function setImgRole(role){
+  imgRole=role;
+  ['tp','xe','both'].forEach(function(r){
+    var btn=document.getElementById('imgRole'+r.charAt(0).toUpperCase()+r.slice(1));
+    if(btn){
+      if(r===role){
+        btn.style.background=r==='tp'?'var(--tp-pale)':r==='xe'?'var(--xe-pale)':'var(--both-pale)';
+        btn.style.color=r==='tp'?'var(--tp)':r==='xe'?'var(--xe)':'var(--both)';
+        btn.style.borderColor=r==='tp'?'var(--tp)':r==='xe'?'var(--xe)':'var(--both)';
+      } else {
+        btn.style.background='var(--border)';
+        btn.style.color='var(--text-mid)';
+        btn.style.borderColor='var(--border)';
+      }
+    }
+  });
+}
+
+function handleImgDrop(e){
+  e.preventDefault();
+  document.getElementById('imgDropZone').style.borderColor='var(--border)';
+  var file=e.dataTransfer.files[0];
+  if(file)loadImgFile(file);
+}
+
+function handleImgFile(input){
+  var file=input.files[0];
+  if(file)loadImgFile(file);
+}
+
+function loadImgFile(file){
+  imgMimeType=file.type||'image/png';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var dataUrl=e.target.result;
+    imgBase64=dataUrl.split(',')[1];
+    document.getElementById('imgPreviewEl').src=dataUrl;
+    document.getElementById('imgFileName').textContent=file.name+' ('+Math.round(file.size/1024)+'KB)';
+    document.getElementById('imgPreview').style.display='block';
+    document.getElementById('imgDropZone').style.display='none';
+    document.getElementById('imgStatus').textContent='Image ready — tap Scan to extract tasks';
+    document.getElementById('imgStatus').style.color='var(--tp)';
+  };
+  reader.readAsDataURL(file);
+}
+
+function scanImage(){
+  if(!imgBase64){toast('Please select an image first');return;}
+  var key=localStorage.getItem(KG);
+  if(!key){
+    key=prompt('Enter your Gemini API key (from aistudio.google.com):');
+    if(!key)return;
+    localStorage.setItem(KG,key.trim());
+  }
+
+  var btn=document.getElementById('imgScanBtn');
+  var status=document.getElementById('imgStatus');
+  btn.disabled=true;btn.textContent='Scanning...';
+  status.textContent='Claude is reading your screenshot...';
+  status.style.color='var(--text-light)';
+
+  var roleLabel=imgRole==='tp'?'TerraPower':imgRole==='xe'?'X-Energy':'both TerraPower and X-Energy';
+  var context=document.getElementById('imgContext').value.trim();
+  var today=todayStr();
+
+  var p2='You are extracting tasks and action items from a screenshot for Jessa, a nuclear PM.\n';
+  p2+='This is from her '+roleLabel+' work tools (Planner, Jira, Teams, Excel, or similar).\n';
+  p2+='Today is '+today+'.\n';
+  if(context)p2+='Context: '+context+'\n';
+  p2+='Extract every task/action/ticket visible. Format each as:\n';
+  p2+='TASK: [title] | STATUS: [status] | DUE: [date] | PRIORITY: [priority]\n';
+  p2+='End with: SUMMARY: [2-3 sentences on urgent items and focus]\n';
+  p2+='Only include real items visible in the image.';
+
+    // Use Gemini vision API
+  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key;
+  fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      contents:[{parts:[
+        {inline_data:{mime_type:imgMimeType,data:imgBase64}},
+        {text:p2}
+      ]}],
+      generationConfig:{maxOutputTokens:2000,temperature:0.1}
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    btn.disabled=false;btn.textContent='Scan & Extract Tasks';
+    if(!data.candidates||!data.candidates[0]||!data.candidates[0].content){
+      status.textContent='Scan failed — check API key';
+      status.style.color='var(--rose)';
+      return;
+    }
+    var result=data.candidates[0].content.parts[0].text;
+    // Add extracted tasks to manual tasks and show in New Information
+    var lines=result.split('\n');
+    var added=0;
+    lines.forEach(function(line){
+      line=line.trim();
+      if(!line||!/^TASK:/i.test(line))return;
+      var titleM=line.match(/TASK:\s*(.+?)(?:\s*\|\s*STATUS:|$)/i);
+      if(!titleM)return;
+      var title=titleM[1].trim();
+      if(!title||title.length<3)return;
+      if(!S.manual)S.manual=[];
+      S.manual.push({id:Date.now()+Math.random(),time:'',endTime:'',label:imgRole,labels:[imgRole],title:title,done:false,note:line,carried:false,src:'image-scan'});
+      added++;
+    });
+
+    // Also store summary in new info for re-analyze
+    var summaryM=result.match(/SUMMARY:\s*([\s\S]+)$/im);
+    if(summaryM){
+      var infoEl=document.getElementById('inlineInfo');
+      if(infoEl){
+        var existing=infoEl.value.trim();
+        infoEl.value=(existing?existing+'\n\n':'')+('[Scanned from '+roleLabel+' screenshot]\n'+summaryM[1].trim()+'\n\nFull extracted tasks:\n'+result.split('SUMMARY:')[0].trim());
+      }
+    }
+
+    save();
+    closeModal('imageModal');
+    render();
+    toast('✓ Extracted '+added+' tasks from image');
+    status.textContent='';
+
+    if(added>0){
+      // Prompt to re-analyze with new data
+      setTimeout(function(){
+        if(confirm('Added '+added+' tasks from your screenshot. Re-analyze your plan to schedule them?')){
+          openReanalyze();
+        }
+      },300);
+    }
+  })
+  .catch(function(e){
+    btn.disabled=false;btn.textContent='Scan & Extract Tasks';
+    status.textContent='Error: '+e.message;
+    status.style.color='var(--rose)';
+  });
+}
+
 function hardReset(){
   if(!confirm('Clear today\'s schedule and reload from email?'))return;
   S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[]};
