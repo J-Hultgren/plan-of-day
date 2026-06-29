@@ -1290,7 +1290,7 @@ function doReanalyzeWithKey(key,newInfo){
   p+='--- SECTION 4: RISK FLAGS ---\nRED [TP]: ...\nRED [XE]: ...\nYELLOW [TP]: ...\nYELLOW [XE]: ...\nGREEN [TP]: ...\nGREEN [XE]: ...\n\n';
   p+='--- SECTION 5: KEY DECISIONS ---\nTerraPower Decision Today: ...\nX-Energy Decision Today: ...';
 
-  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key,{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{maxOutputTokens:3000,temperature:0.2}})
   }).then(function(r){return r.json();}).then(function(data){
@@ -1299,8 +1299,13 @@ function doReanalyzeWithKey(key,newInfo){
     var result=data.candidates[0].content.parts[0].text;
     var om=S.manual||[],od=S.deferred||[],obl=S.backlog||[];
     parseEmail(result);
-    var seen={};od.forEach(function(d){seen[d.toLowerCase()]=true;});
-    (S.deferred||[]).forEach(function(d){if(!seen[d.toLowerCase()]){od.push(d);seen[d.toLowerCase()]=true;}});
+    var seen={};
+    od.forEach(function(d){var txt=typeof d==='object'?d.text||'':String(d||'');seen[txt.toLowerCase().trim()]=true;});
+    (S.deferred||[]).forEach(function(d){
+      var txt=typeof d==='object'?d.text||'':String(d||'');
+      var k=txt.toLowerCase().trim();
+      if(k.length>2&&!seen[k]){od.push(d);seen[k]=true;}
+    });
     S.manual=om;S.deferred=od;S.backlog=obl;S.rawEmail=result;
     save();render();toast('Re-analyzed ✓');setSyncDot('green');
   }).catch(function(e){hideLoading();toast('Error: '+e.message);console.error('Re-analyze error:',e);});
@@ -1398,7 +1403,7 @@ function scanImage(){
   p2+='Only include real items visible in the image.';
 
     // Use Gemini vision API
-  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key;
+  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key;
   fetch(url,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
