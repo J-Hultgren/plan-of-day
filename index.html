@@ -654,6 +654,37 @@ function formatTime12(hhmm){
 }
 function todayStr(){return new Date().toISOString().slice(0,10);}
 
+function tomorrowStr(){var d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
+
+// Extract a date from free text — supports M/D/YYYY, M-D-YYYY, "Due 6/29", "COB 6/29/26" etc.
+function extractDate(text){
+  if(!text)return null;
+  var year=new Date().getFullYear();
+  // M/D/YYYY or M/D/YY
+  var m=text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+  if(m){
+    var yr=m[3].length===2?2000+parseInt(m[3]):parseInt(m[3]);
+    var mo=parseInt(m[1]),da=parseInt(m[2]);
+    return yr+'-'+String(mo).padStart(2,'0')+'-'+String(da).padStart(2,'0');
+  }
+  // M/D (no year) — assume current year
+  var m2=text.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+  if(m2){
+    var mo2=parseInt(m2[1]),da2=parseInt(m2[2]);
+    return year+'-'+String(mo2).padStart(2,'0')+'-'+String(da2).padStart(2,'0');
+  }
+  return null;
+}
+
+function isDateTomorrow(dateStr){
+  if(!dateStr)return false;
+  return dateStr===tomorrowStr();
+}
+function isDateOverdue(dateStr){
+  if(!dateStr)return false;
+  return dateStr<todayStr();
+}
+
 // ── RENDER ─────────────────────────────────────────────────────────────────
 function render(){
   var all=(S.tasks||[]).concat(S.manual||[]);
@@ -816,48 +847,98 @@ function render(){
     html+='</div></div>';
   }
 
-  // Tomorrow Focus section — meetings + any flagged upcoming tasks
-  var tomItems=S.tomorrow||[];
-  // Also pull backlog items due tomorrow or flagged
-  var tomBacklog=(S.backlog||[]).filter(function(b){
-    return b.title&&(/tomorrow|due/i.test(b.note||'')||/due tomorrow/i.test(b.title));
+  // Tomorrow Focus & Overdue — scans deferred, backlog, planner tasks for dates
+  var tomDate=tomorrowStr();
+  var dueTomorrow=[];
+  var overdueItems=[];
+
+  function scanForDates(items,getText,getMeta){
+    items.forEach(function(item){
+      var txt=getText(item);
+      if(!txt)return;
+      var d=extractDate(txt);
+      if(!d)return;
+      var meta=getMeta(item);
+      if(d===tomDate)dueTomorrow.push({text:txt,date:d,label:meta.label,source:meta.source,raw:item});
+      else if(d<todayStr())overdueItems.push({text:txt,date:d,label:meta.label,source:meta.source,raw:item});
+    });
+  }
+
+  // Scan deferred
+  scanForDates(S.deferred||[],
+    function(d){return typeof d==='object'?d.text:d;},
+    function(d){var t=typeof d==='object'?d.text:d;var lbl=/\[TP\]/i.test(t)?'tp':/\[XE\]/i.test(t)?'xe':'';return{label:lbl,source:'Deferred'};}
+  );
+  // Scan backlog
+  scanForDates(S.backlog||[],
+    function(b){return b.title+' '+(b.note||'');},
+    function(b){return{label:b.label||'',source:'Backlog'};}
+  );
+  // Scan planner tasks
+  scanForDates(S.plannerTasks||[],
+    function(p){return p.title+' '+(p.note||'');},
+    function(p){return{label:p.role||'',source:'Planner'};}
+  );
+  // Scan tomorrow meetings from digest (always due tomorrow by definition)
+  (S.tomorrow||[]).forEach(function(t){
+    dueTomorrow.push({text:t.title,date:tomDate,label:'meeting',source:'Calendar',isMeeting:true,isoStart:t.isoStart,isoEnd:t.isoEnd});
   });
-  if(tomItems.length||tomBacklog.length){
-    var tomCount=tomItems.length+tomBacklog.length;
+
+  if(dueTomorrow.length||overdueItems.length){
     html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)">';
     html+='<div class="sec-dot" style="background:var(--xe)"></div>';
     html+='<h2>Tomorrow Focus</h2>';
-    html+='<span class="sec-count">'+tomCount+'</span>';
+    html+='<span class="sec-count">'+dueTomorrow.length+'</span>';
+    if(overdueItems.length)html+='<span style="font-size:10px;color:#C44;margin-left:4px;">'+overdueItems.length+' overdue</span>';
     html+='<span class="sec-arr">▾</span></div><div class="sec-body hidden">';
 
-    if(tomItems.length){
-      html+='<div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.4px;">Scheduled</div>';
-      tomItems.forEach(function(t){
-        try{
-          var d=new Date(t.isoStart.replace(/\..*$/,'')+'Z');
-          var etH=d.getUTCHours()-4;
-          if(etH<0)etH+=24;
-          var mi=String(d.getUTCMinutes()).padStart(2,'0');
-          var ap=etH>=12?'PM':'AM';
-          var h12=etH%12||12;
-          var timeStr=h12+':'+mi+' '+ap;
-          // Duration if end time available
-          var durStr='';
-          if(t.isoEnd){
-            var de=new Date(t.isoEnd.replace(/\..*$/,'')+'Z');
-            var durM=Math.round((de-d)/60000);
-            if(durM>0)durStr=' ('+durM+'m)';
-          }
-          html+='<div class="list-item" style="border-left:3px solid var(--meeting);">';
-          html+='<span style="font-size:11px;color:var(--meeting);font-weight:500;flex-shrink:0;width:62px;">'+timeStr+'</span>';
-          html+='<span style="color:var(--text);flex:1;">'+esc(t.title)+'</span>';
-          if(durStr)html+='<span style="font-size:10px;color:var(--text-light);">'+durStr+'</span>';
-          html+='</div>';
-        }catch(e){}
+    // Overdue first — most urgent
+    if(overdueItems.length){
+      html+='<div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:#C44;text-transform:uppercase;letter-spacing:0.4px;">⚠ Overdue</div>';
+      overdueItems.forEach(function(o){
+        html+='<div class="list-item" style="border-left:3px solid #C44;">';
+        if(o.label)html+='<span class="tl-tag tag-'+o.label+'" style="flex-shrink:0;">'+o.label.toUpperCase()+'</span>';
+        html+='<span style="flex:1;color:var(--text);">'+esc(o.text.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim())+'</span>';
+        html+='<span style="font-size:9px;color:#C44;flex-shrink:0;">'+o.date+'</span>';
+        html+='</div>';
       });
     }
 
-    // Carry-forward preview — what incomplete tasks will move to tomorrow
+    // Due tomorrow
+    if(dueTomorrow.length){
+      html+='<div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--xe);text-transform:uppercase;letter-spacing:0.4px;">Due Tomorrow</div>';
+      // Sort meetings by time first
+      dueTomorrow.sort(function(a,b){
+        if(a.isMeeting&&b.isMeeting)return (a.isoStart||'').localeCompare(b.isoStart||'');
+        if(a.isMeeting)return -1;
+        if(b.isMeeting)return 1;
+        return 0;
+      });
+      dueTomorrow.forEach(function(t){
+        if(t.isMeeting){
+          var timeStr='';
+          try{
+            var d=new Date(t.isoStart.replace(/\..*$/,'')+'Z');
+            var etH=d.getUTCHours()-4;if(etH<0)etH+=24;
+            var mi=String(d.getUTCMinutes()).padStart(2,'0');
+            var ap=etH>=12?'PM':'AM';var h12=etH%12||12;
+            timeStr=h12+':'+mi+' '+ap;
+          }catch(e){}
+          html+='<div class="list-item" style="border-left:3px solid var(--meeting);">';
+          html+='<span style="font-size:11px;color:var(--meeting);font-weight:500;flex-shrink:0;width:62px;">'+timeStr+'</span>';
+          html+='<span style="color:var(--text);flex:1;">'+esc(t.text)+'</span>';
+          html+='</div>';
+        } else {
+          html+='<div class="list-item">';
+          if(t.label)html+='<span class="tl-tag tag-'+t.label+'" style="flex-shrink:0;">'+t.label.toUpperCase()+'</span>';
+          html+='<span style="flex:1;color:var(--text-mid);">'+esc(t.text.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim())+'</span>';
+          html+='<span style="font-size:9px;color:var(--text-light);flex-shrink:0;">'+t.source+'</span>';
+          html+='</div>';
+        }
+      });
+    }
+
+    // Carry-forward preview from today
     var carryPreview=((S.tasks||[]).concat(S.manual||[])).filter(function(t){
       return !t.done&&t.label!=='meeting'&&t.label!=='prep'&&t.time;
     });
@@ -870,7 +951,7 @@ function render(){
         if(lbl)html+='<span class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</span>';
         html+='</div>';
       });
-      if(carryPreview.length>5)html+='<div style="padding:4px 14px;font-size:11px;color:var(--text-light);">+' +(carryPreview.length-5)+' more</div>';
+      if(carryPreview.length>5)html+='<div style="padding:4px 14px;font-size:11px;color:var(--text-light);">+'+(carryPreview.length-5)+' more</div>';
     }
 
     html+='</div></div>';
