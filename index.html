@@ -395,7 +395,7 @@ function loadArchiveSupa(cb){
 function setSyncDot(color){var d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');if(d){d.className='sync-dot'+(color!=='green'?' '+color:'');t.textContent=color==='green'?'synced':color==='yellow'?'syncing...':'offline';};}
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[]};
+var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[]};
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
@@ -776,6 +776,45 @@ function render(){
   html+='<select id="blLbl" style="border:1px solid var(--border);border-radius:20px;padding:6px 7px;font-size:11px;font-family:DM Sans,sans-serif;background:var(--warm);color:var(--text-mid);outline:none;"><option value="tp">TP</option><option value="xe">XE</option><option value="">—</option></select>';
   html+='<button class="btn btn-sm" onclick="addToBacklog()" style="background:var(--both);color:#fff;border:none;">Add</button>';
   html+='</div></div></div>';
+
+  // Planner Tasks — imported from screenshot scans
+  var pt=(S.plannerTasks||[]);
+  if(pt.length){
+    var ptActive=pt.filter(function(p){return !p.done;});
+    var ptDone=pt.filter(function(p){return p.done;});
+    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)">';
+    html+='<div class="sec-dot" style="background:var(--both)"></div>';
+    html+='<h2>📌 Planner Tasks</h2>';
+    html+='<span class="sec-count">'+ptActive.length+'</span>';
+    html+='<span class="sec-arr open">▾</span></div><div class="sec-body">';
+
+    ptActive.forEach(function(p){
+      var accent=p.role==='tp'?'var(--tp)':p.role==='xe'?'var(--xe)':'var(--both)';
+      var tagLbl=p.role==='tp'?'PLANNER · TP':p.role==='xe'?'PLANNER · XE':'PLANNER';
+      html+='<div class="backlog-item" style="border-left:3px solid '+accent+';border-left-style:dashed;">';
+      html+='<div data-ptid="'+p.id+'" onclick="togPlannerTask(this.dataset.ptid)" style="width:16px;height:16px;border-radius:50%;border:1.5px solid #ccc;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;"></div>';
+      html+='<span class="tl-tag tag-'+(p.role||'both')+'" style="flex-shrink:0;font-size:7px;">'+tagLbl+'</span>';
+      html+='<span style="flex:1;font-size:12px;color:var(--text);">'+esc(p.title)+'</span>';
+      html+='<button data-ptid="'+p.id+'" onclick="delPlannerTask(this.dataset.ptid)" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;flex-shrink:0;">×</button>';
+      html+='</div>';
+    });
+
+    if(ptDone.length){
+      html+='<div onclick="togPlannerDone(this)" style="padding:6px 14px;font-size:10px;color:var(--tp);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;border-top:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">';
+      html+='<span>✓ Completed ('+ptDone.length+')</span><span>▾</span></div>';
+      html+='<div class="planner-done-body" style="display:none;">';
+      ptDone.forEach(function(p){
+        html+='<div class="backlog-item" style="opacity:0.5;">';
+        html+='<div style="width:16px;height:16px;border-radius:50%;background:var(--tp);border:1.5px solid var(--tp);display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0;">✓</div>';
+        html+='<span style="flex:1;font-size:12px;text-decoration:line-through;color:var(--text-light);">'+esc(p.title)+'</span>';
+        html+='<button data-ptid="'+p.id+'" onclick="delPlannerTask(this.dataset.ptid)" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;flex-shrink:0;">×</button>';
+        html+='</div>';
+      });
+      html+='</div>';
+    }
+
+    html+='</div></div>';
+  }
 
   // Tomorrow Focus section — meetings + any flagged upcoming tasks
   var tomItems=S.tomorrow||[];
@@ -1291,6 +1330,29 @@ function delBacklog(i){S.backlog=(S.backlog||[]).filter(function(b,idx){return i
 function moveToToday(i){var b=S.backlog&&S.backlog[i];if(!b)return;if(!S.manual)S.manual=[];S.manual.push({id:Date.now(),time:'',endTime:'',label:b.label,title:b.title.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim(),done:false,note:b.note||'',carried:false,src:'backlog'});S.backlog=(S.backlog||[]).filter(function(b2,idx){return idx!==i;});save();render();toast('Moved to today ✓');}
 
 // ── DEFERRED ───────────────────────────────────────────────────────────────
+function togPlannerTask(id){
+  var p=(S.plannerTasks||[]).find(function(x){return String(x.id)===String(id);});
+  if(!p)return;
+  p.done=!p.done;
+  if(p.done)p.completedAt=new Date().toISOString();
+  save();render();
+  toast(p.done?'✓ Marked complete':'Marked active');
+}
+
+function delPlannerTask(id){
+  S.plannerTasks=(S.plannerTasks||[]).filter(function(p){return String(p.id)!==String(id);});
+  save();render();
+}
+
+function togPlannerDone(hdr){
+  var body=hdr.nextElementSibling;
+  if(!body)return;
+  var hidden=body.style.display==='none';
+  body.style.display=hidden?'block':'none';
+  var arr=hdr.querySelector('span:last-child');
+  if(arr)arr.style.transform=hidden?'rotate(180deg)':'rotate(0deg)';
+}
+
 function delDeferred(i){S.deferred=(S.deferred||[]).filter(function(d,idx){return idx!==i;});save();render();}
 function delDeferredById(id){S.deferred=(S.deferred||[]).filter(function(d){return (typeof d==='object'?d.id:null)!==id;});save();render();}
 function completeDeferred(id){
@@ -1370,6 +1432,7 @@ function doReanalyzeWithKey(key,newInfo){
   var today=todayStr();
   var completed=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.done;}).map(function(t){return 'DONE: '+t.title;}).join('\n');
   var backlog=(S.backlog||[]).map(function(b){return '- '+b.title+(b.label?' ['+b.label.toUpperCase()+']':'');}).join('\n');
+  var plannerActive=(S.plannerTasks||[]).filter(function(p){return !p.done;}).map(function(p){return '- ['+( p.role||'').toUpperCase()+'] '+p.title;}).join('\n');
   var carried=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.carried&&!t.done;}).map(function(t){return '- '+t.title;}).join('\n');
 
   // Get today's locked meetings from current tasks
@@ -1393,6 +1456,7 @@ function doReanalyzeWithKey(key,newInfo){
   if(completed)p+='COMPLETED TODAY:\n'+completed+'\n\n';
   if(carried)p+='INCOMPLETE FROM YESTERDAY:\n'+carried+'\n\n';
   if(backlog)p+='BACKLOG (schedule if room):\n'+backlog+'\n\n';
+  if(plannerActive)p+='PLANNER TASKS (from Teams Planner board, schedule if room):\n'+plannerActive+'\n\n';
   if(newInfo)p+='NEW INFORMATION:\n'+newInfo+'\n\n';
   p+='Provide updated Plan of Day in EXACTLY this format:\n\n';
   p+='--- SECTION 1: SUMMARY ANALYSIS ---\n3-5 sentences. Reference real items.\n\n';
@@ -1586,10 +1650,8 @@ function scanImage(){
       if(!titleM)return;
       var title=titleM[1].trim();
       if(!title||title.length<3)return;
-      if(!S.manual)S.manual=[];
-      var plannerLabel='planner-'+imgRole;
-      if(imgRole==='both')plannerLabel='planner-tp'; // default to tp for both
-      S.manual.push({id:Date.now()+Math.random(),time:'',endTime:'',label:plannerLabel,labels:[plannerLabel,imgRole],title:title,done:false,note:line,carried:false,src:'image-scan'});
+      if(!S.plannerTasks)S.plannerTasks=[];
+      S.plannerTasks.push({id:'pt-'+Date.now()+Math.random(),title:title,role:imgRole,done:false,note:line,addedDate:todayStr(),scannedAt:new Date().toISOString()});
       added++;
     });
 
