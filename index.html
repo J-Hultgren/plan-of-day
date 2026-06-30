@@ -406,6 +406,11 @@ window.addEventListener('DOMContentLoaded',function(){
 
   var today=todayStr(),lastDate=localStorage.getItem(KD)||'',raw=localStorage.getItem(KS);
 
+  // Check if it's truly a new day — don't archive until after 3am
+  // This lets you use the app late at night without triggering archival
+  var nowHour=new Date().getHours();
+  var isNewDay=lastDate!==today&&(nowHour>=3||!lastDate);
+
   if(lastDate===today&&raw){
     try{S=JSON.parse(raw);}catch(e){}
     render();
@@ -428,8 +433,8 @@ window.addEventListener('DOMContentLoaded',function(){
     return;
   }
 
-  // New day
-  if(raw){
+  // New day (only after 3am)
+  if(isNewDay&&raw){
     try{
       var yest=JSON.parse(raw);
       var archDate=lastDate||'unknown';
@@ -444,10 +449,25 @@ window.addEventListener('DOMContentLoaded',function(){
     }catch(e){console.error(e);}
   }
 
+  // If before 3am and lastDate is yesterday, treat as still yesterday
+  if(!isNewDay&&lastDate!==today&&raw){
+    try{S=JSON.parse(raw);}catch(e){}
+    // Update date to today so it saves correctly
+    S.date=today;
+    localStorage.setItem(KD,today);
+    render();
+    return;
+  }
+
   loadSupa(function(remote,remoteDate){
     if(remote&&remoteDate===today){
       S=remote;localStorage.setItem(KS,JSON.stringify(S));localStorage.setItem(KD,today);
       render();toast('Loaded from cloud ✓');setSyncDot('green');
+    } else if(!isNewDay&&remote&&remoteDate===lastDate){
+      // Before 3am — load yesterday's state
+      S=remote;S.date=today;
+      localStorage.setItem(KS,JSON.stringify(S));localStorage.setItem(KD,today);
+      render();
     } else {
       showWelcome();
     }
@@ -724,7 +744,9 @@ function render(){
     });
     // Completed deferred at bottom, greyed out
     if(doneDef.length){
-      html+='<div style="padding:6px 14px 2px;font-size:10px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;border-top:1px solid var(--border);">Completed</div>';
+      html+='<div onclick="togDoneDef(this)" style="padding:6px 14px;font-size:10px;color:var(--tp);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;border-top:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">'+
+            '<span>✓ Completed ('+doneDef.length+')</span><span>▾</span></div>';
+      html+='<div class="done-def-body" style="display:none;">';
       doneDef.forEach(function(d){
         var lbl=/terrapower/i.test(d.text)?'tp':/x-energy/i.test(d.text)?'xe':'';
         html+='<div class="def-item" style="opacity:0.5;border-left:3px solid var(--tp);">';
@@ -734,6 +756,7 @@ function render(){
         html+='<button data-defid="'+esc(d.id)+'" onclick="delDeferredById(this.dataset.defid)" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:14px;flex-shrink:0;padding:0 4px;">×</button>';
         html+='</div>';
       });
+      html+='</div>'; // close done-def-body
     }
     html+='</div></div>';
   }
@@ -754,15 +777,63 @@ function render(){
   html+='<button class="btn btn-sm" onclick="addToBacklog()" style="background:var(--both);color:#fff;border:none;">Add</button>';
   html+='</div></div></div>';
 
-  // Tomorrow Look Ahead
-  if((S.tomorrow||[]).length){
-    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--xe)"></div><h2>Tomorrow</h2><span class="sec-count">'+S.tomorrow.length+'</span><span class="sec-arr">▾</span></div><div class="sec-body hidden">';
-    S.tomorrow.forEach(function(t){
-      var d=new Date(t.isoStart.replace(/\..*$/,'')+'Z');
-      var h=d.getUTCHours()-4,mi=String(d.getUTCMinutes()).padStart(2,'0');
-      var ap=h>=12?'PM':'AM';h=h%12||12;
-      html+='<div class="list-item"><span style="font-size:11px;color:var(--xe);font-weight:500;flex-shrink:0;width:58px;">'+h+':'+mi+' '+ap+'</span><span style="color:var(--text-mid);">'+esc(t.title)+'</span></div>';
+  // Tomorrow Focus section — meetings + any flagged upcoming tasks
+  var tomItems=S.tomorrow||[];
+  // Also pull backlog items due tomorrow or flagged
+  var tomBacklog=(S.backlog||[]).filter(function(b){
+    return b.title&&(/tomorrow|due/i.test(b.note||'')||/due tomorrow/i.test(b.title));
+  });
+  if(tomItems.length||tomBacklog.length){
+    var tomCount=tomItems.length+tomBacklog.length;
+    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)">';
+    html+='<div class="sec-dot" style="background:var(--xe)"></div>';
+    html+='<h2>Tomorrow Focus</h2>';
+    html+='<span class="sec-count">'+tomCount+'</span>';
+    html+='<span class="sec-arr">▾</span></div><div class="sec-body hidden">';
+
+    if(tomItems.length){
+      html+='<div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.4px;">Scheduled</div>';
+      tomItems.forEach(function(t){
+        try{
+          var d=new Date(t.isoStart.replace(/\..*$/,'')+'Z');
+          var etH=d.getUTCHours()-4;
+          if(etH<0)etH+=24;
+          var mi=String(d.getUTCMinutes()).padStart(2,'0');
+          var ap=etH>=12?'PM':'AM';
+          var h12=etH%12||12;
+          var timeStr=h12+':'+mi+' '+ap;
+          // Duration if end time available
+          var durStr='';
+          if(t.isoEnd){
+            var de=new Date(t.isoEnd.replace(/\..*$/,'')+'Z');
+            var durM=Math.round((de-d)/60000);
+            if(durM>0)durStr=' ('+durM+'m)';
+          }
+          html+='<div class="list-item" style="border-left:3px solid var(--meeting);">';
+          html+='<span style="font-size:11px;color:var(--meeting);font-weight:500;flex-shrink:0;width:62px;">'+timeStr+'</span>';
+          html+='<span style="color:var(--text);flex:1;">'+esc(t.title)+'</span>';
+          if(durStr)html+='<span style="font-size:10px;color:var(--text-light);">'+durStr+'</span>';
+          html+='</div>';
+        }catch(e){}
+      });
+    }
+
+    // Carry-forward preview — what incomplete tasks will move to tomorrow
+    var carryPreview=((S.tasks||[]).concat(S.manual||[])).filter(function(t){
+      return !t.done&&t.label!=='meeting'&&t.label!=='prep'&&t.time;
     });
+    if(carryPreview.length){
+      html+='<div style="padding:8px 14px 4px;font-size:10px;font-weight:600;color:var(--rose);text-transform:uppercase;letter-spacing:0.4px;">Carrying forward if not done today</div>';
+      carryPreview.slice(0,5).forEach(function(t){
+        var lbl=t.label||'';
+        html+='<div class="list-item" style="opacity:0.8;">';
+        html+='<span style="flex:1;font-size:12px;color:var(--text-mid);">'+esc(t.title)+'</span>';
+        if(lbl)html+='<span class="tl-tag tag-'+lbl+'">'+lbl.toUpperCase()+'</span>';
+        html+='</div>';
+      });
+      if(carryPreview.length>5)html+='<div style="padding:4px 14px;font-size:11px;color:var(--text-light);">+' +(carryPreview.length-5)+' more</div>';
+    }
+
     html+='</div></div>';
   }
 
@@ -1277,7 +1348,12 @@ function showArchiveDate(date){
   if(day.summary)html+='<div style="margin-bottom:10px;padding:10px;background:var(--xe-pale);border-radius:8px;color:var(--text-mid);line-height:1.6;font-size:12px;">'+esc(day.summary)+'</div>';
   var all=(day.tasks||[]).concat(day.manual||[]);
   all.forEach(function(t){html+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;'+(t.done?'text-decoration:line-through;color:var(--text-light);':'color:var(--text);')+'">'+(t.time?t.time+' — ':'')+esc(t.title)+'</span>'+(t.label?'<span class="tl-tag tag-'+t.label+'" style="flex-shrink:0;">'+t.label.toUpperCase()+'</span>':'')+(t.done?'<span style="font-size:10px;color:var(--tp);margin-left:auto;">✓</span>':'')+'</div>';});
-  if((day.deferred||[]).length){html+='<div style="margin-top:8px;font-size:10px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.4px;">Deferred</div>';day.deferred.forEach(function(d){html+='<div style="font-size:12px;color:var(--text-light);padding:4px 0;border-bottom:1px solid var(--border);">'+esc(d)+'</div>';});}
+  if((day.deferred||[]).length){html+='<div style="margin-top:8px;font-size:10px;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.4px;">Deferred</div>';day.deferred.forEach(function(d){
+      var txt=typeof d==='object'?d.text||'':String(d||'');
+      if(!txt||txt.trim().length<2)return;
+      var done=typeof d==='object'&&d.done;
+      html+='<div style="font-size:12px;color:var(--text-light);padding:4px 0;border-bottom:1px solid var(--border);'+(done?'text-decoration:line-through;opacity:0.5;':'')+'">'+esc(txt.replace(/^\*?\s*(TerraPower|X-Energy):\s*/i,'').trim())+'</div>';
+    });}
   html+='</div>';
   document.getElementById('archContent').innerHTML=html;
 }
@@ -1548,6 +1624,17 @@ function scanImage(){
     status.textContent='Error: '+e.message;
     status.style.color='var(--rose)';
   });
+}
+
+function togDoneDef(hdr){
+  var body=hdr.nextElementSibling;
+  if(!body)return;
+  var hidden=body.style.display==='none';
+  body.style.display=hidden?'block':'none';
+  var arr=hdr.querySelector('span:last-child');
+  if(arr)arr.style.transform=hidden?'rotate(180deg)':'rotate(0deg)';
+  var lbl=hdr.querySelector('span:first-child');
+  if(lbl)lbl.textContent=hidden?'✓ Completed ('+body.children.length+') — collapse':'✓ Completed ('+body.children.length+') — expand';
 }
 
 function togCompleted(){
