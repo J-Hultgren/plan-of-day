@@ -1521,7 +1521,10 @@ function doReanalyzeWithKey(key,newInfo){
   var allTimed=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.time&&t.time.length>0;});
   var meetings=allTimed.map(function(t){
     var lbls=Array.isArray(t.labels)&&t.labels.length?t.labels.map(function(l){return l.toUpperCase();}).join('+'):(t.label||'').toUpperCase();
-    return t.time+(t.endTime?'-'+t.endTime:'')+' ['+lbls+'] '+t.title;
+    var sm=timeToMinutes(t.time);
+    var em=t.endTime?timeToMinutes(t.endTime):sm+30;
+    var dur=em-sm;
+    return 'START: '+t.time+' ET | END: '+(t.endTime||addMinutes(t.time,30))+' ET | DURATION: '+dur+' min | '+t.title;
   }).join('\n');
 
   var p='You are helping Jessa, dual-role nuclear PM (TerraPower EPM + X-Energy Chemistry).\n';
