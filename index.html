@@ -509,6 +509,7 @@ function carryForward(yest){
   [(yest.tasks||[]),(yest.manual||[])].forEach(function(list){
     list.forEach(function(t){
       if(t.label==='meeting'||t.label==='prep')return;
+      if(t.label==='family'&&t.src==='auto')return; // calendar-sourced, not a task
       if(!t.done){var c=Object.assign({},t);c.carried=true;c.time='';c.endTime='';c.id=Date.now()+Math.random();c.src='carried';
         if(!c.labels||!c.labels.length)c.labels=c.label?[c.label]:[];
         carried.push(c);}
@@ -759,7 +760,7 @@ function render(){
   html+='<button class="btn btn-sm" style="background:var(--rose-pale);color:var(--rose);border:none;" onclick="openAddModal()">+ Add</button>';
   html+='</div>';
   html+='<div class="timeline-body" id="timelineBody">';
-  html+=renderTimeline();
+  html+=renderTimeline('work');
   html+='</div>';
   html+='<div class="tl-add-bar">';
   html+='<input type="text" id="quickTitle" placeholder="Quick-add task..." onkeydown="if(event.key===\'Enter\')quickAdd()">';
@@ -1019,22 +1020,18 @@ function render(){
 function renderLifeTab(){
   var html='';
 
-  // Family schedule for today (timed family-labeled tasks)
-  var all=(S.tasks||[]).concat(S.manual||[]);
-  var familyItems=all.filter(function(t){return t.label==='family';}).sort(function(a,b){return (a.time||'99:99').localeCompare(b.time||'99:99');});
-
-  html+='<div class="life-card"><h2>🏡 Today</h2>';
-  if(!familyItems.length){
-    html+='<div class="life-text">Nothing on the family calendar today.</div>';
-  } else {
-    familyItems.forEach(function(t){
-      html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">';
-      html+='<span style="font-size:12px;color:var(--family);font-weight:500;flex-shrink:0;width:70px;">'+(t.time?formatTime12(t.time):'')+'</span>';
-      html+='<span style="flex:1;font-size:13px;color:var(--text);'+(t.done?'text-decoration:line-through;color:var(--text-light);':'')+'">'+esc(t.title)+'</span>';
-      html+='<div class="tl-check'+(t.done?' done':'')+'" data-id="'+t.id+'" onclick="togTask(this.dataset.id);renderLifeTab();" style="position:static;flex-shrink:0;">'+(t.done?'✓':'')+'</div>';
-      html+='</div>';
-    });
-  }
+  html+='<div class="timeline-wrap">';
+  html+='<div class="timeline-header"><h2>🏡 Today at Home</h2>';
+  html+='<button class="btn btn-sm" style="background:var(--family-pale);color:var(--family);border:none;" onclick="openAddModal(\'family\')">+ Add</button>';
+  html+='</div>';
+  html+='<div class="timeline-body" id="timelineBody">';
+  html+=renderTimeline('life');
+  html+='</div>';
+  html+='<div class="tl-add-bar">';
+  html+='<input type="text" id="lifeQuickTitle" placeholder="Quick-add — gym, dance, dinner..." onkeydown="if(event.key===\'Enter\')lifeQuickAdd()">';
+  html+='<input type="time" id="lifeQuickTime" style="width:90px;">';
+  html+='<button class="btn btn-sm" style="background:var(--family);color:#fff;border:none;" onclick="lifeQuickAdd()">Add</button>';
+  html+='</div>';
   html+='</div>';
 
   // Money
@@ -1064,10 +1061,26 @@ function renderLifeTab(){
   html+='</div>';
 
   document.getElementById('main').innerHTML=html;
+  initTimeline();
+  updateNowLine();
+}
+
+function lifeQuickAdd(){
+  var title=document.getElementById('lifeQuickTitle');
+  var time=document.getElementById('lifeQuickTime');
+  if(!title||!title.value.trim())return;
+  var t=title.value.trim();
+  var start=time.value||'';
+  var end=start?addMinutes(start,30):'';
+  if(!S.manual)S.manual=[];
+  S.manual.push({id:Date.now(),time:start,endTime:end,label:'family',labels:['family'],title:t,done:false,note:'',carried:false,src:'manual'});
+  title.value='';time.value='';
+  save();renderLifeTab();toast('Added to home schedule');
 }
 
 // ── TIMELINE RENDERER ──────────────────────────────────────────────────────
-function renderTimeline(){
+function renderTimeline(mode){
+  mode=mode||'work';
   var totalMins=(END_HOUR-START_HOUR)*60;
   // grid height calculated below
 
@@ -1090,8 +1103,8 @@ function renderTimeline(){
 
   // Task blocks — with overlap/stagger (Google Calendar style)
   var all=(S.tasks||[]).concat(S.manual||[]);
-  // Work tab never shows family-labeled items — those live in the Life tab
-  all=all.filter(function(t){return t.label!=='family';});
+  // Work tab never shows family-labeled items; Life tab shows ONLY family items
+  all=mode==='life' ? all.filter(function(t){return t.label==='family';}) : all.filter(function(t){return t.label!=='family';});
   if(activeFilter!=='all'){
     if(activeFilter==='done')all=all.filter(function(t){return t.done;});
     else all=all.filter(function(t){return t.label===activeFilter;});
@@ -1466,18 +1479,20 @@ function quickAdd(){
   save();render();toast('Task added');
 }
 
-function openAddModal(){
+function openAddModal(defaultLabel){
   var now=new Date();
   var h=String(now.getHours()).padStart(2,'0'),m=String(now.getMinutes()).padStart(2,'0');
   document.getElementById('nStart').value=h+':'+m;
   document.getElementById('nEnd').value=addMinutes(h+':'+m,30);
   document.getElementById('nTitle').value='';
   document.getElementById('nNote').value='';
+  selectedAddTag=defaultLabel||'';
   // Build tag pills
   var pills=document.getElementById('addTagPills');
   if(pills){
     pills.innerHTML=LABELS.map(function(l){
-      return '<button class="tag-pill-btn'+(l===''?' active-empty':'')+'" data-label="'+l+'" onclick="selectAddTag(this,\''+l+'\')">'+(LABEL_NAMES[l]||'—')+'</button>';
+      var active=defaultLabel?(l===defaultLabel):(l==='');
+      return '<button class="tag-pill-btn'+(active?' active-'+(l||'empty'):'')+'" data-label="'+l+'" onclick="selectAddTag(this,\''+l+'\')">'+(LABEL_NAMES[l]||'—')+'</button>';
     }).join('');
   }
   openModal('addModal');
@@ -1551,7 +1566,7 @@ function setFilter(f,btn){
   document.querySelectorAll('.fchip').forEach(function(c){c.className='fchip';});
   btn.className='fchip f-'+f;
   var grid=document.getElementById('tlGrid');
-  if(grid){var html=renderTimeline();var body=document.getElementById('timelineBody');if(body)body.innerHTML=html;initTimeline();updateNowLine();}
+  if(grid){var html=renderTimeline('work');var body=document.getElementById('timelineBody');if(body)body.innerHTML=html;initTimeline();updateNowLine();}
 }
 
 // ── WELCOME ────────────────────────────────────────────────────────────────
@@ -1647,6 +1662,7 @@ function doReanalyzeWithKey(key,newInfo){
   p+='MEETING RULE: Each meeting above is ONE line using its full start-to-end time. NEVER split into chunks.\\n';
   p+='Example of CORRECT: 10:00-11:30 | [MEETING] | EDM - Schedule Updates\\n';
   p+='Example of WRONG: three lines at 10:00-10:30, 10:30-11:00, 11:00-11:30 for the same meeting.\\n';
+  p+='NO DOUBLE-BOOKING: every non-meeting task gets its own time slot. Two tasks may never share or overlap the same time range. If there is not enough open time, put the extra tasks in [DEFERRED] instead of stacking them.\\n';
   p+='[DEFERRED]:\\n- [TP] item\\n- [XE] item\\n\\n';
   p+='--- SECTION 3: TOP PRIORITIES ---\nTerraPower Priority 1: ...\nTerraPower Priority 2: ...\nX-Energy Priority 1: ...\nX-Energy Priority 2: ...\n\n';
   p+='--- SECTION 4: RISK FLAGS ---\nRED [TP]: ...\nRED [XE]: ...\nYELLOW [TP]: ...\nYELLOW [XE]: ...\nGREEN [TP]: ...\nGREEN [XE]: ...\n\n';
