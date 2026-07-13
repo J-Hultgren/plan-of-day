@@ -14,6 +14,7 @@
   --both:#B89AAD; --both-pale:#EDE4EE;
   --meeting:#5A7FA8; --meeting-pale:#DAEAF8;
   --prep:#C4808A; --prep-pale:#F2DDE1;
+  --family:#C9A15A; --family-pale:#F3E8D2;
   --text:#3A3035; --text-mid:#6B5F65; --text-light:#A09098;
   --border:#E8DDE0; --shadow:rgba(180,140,150,0.1);
   --hour-h: 80px; /* height of one hour on timeline */
@@ -41,6 +42,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#7FDBA0;display:inline-block;margin-right:3px;}
 .sync-dot.yellow{background:#FFD980;}
 .sync-dot.red{background:#FF8A8A;}
+
+/* TAB BAR */
+.tab-bar{display:flex;gap:6px;margin-top:8px;}
+.tab-btn{flex:1;padding:7px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.15s;}
+.tab-btn.active{background:rgba(255,255,255,0.95);color:var(--rose);border-color:transparent;}
 
 /* MAIN LAYOUT */
 .main{max-width:900px;margin:0 auto;padding:12px 12px 100px;}
@@ -84,6 +90,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tl-block.lboth   {background:rgba(184,154,173,0.25);  border-left:3px solid var(--both);}
 .tl-block.lmeeting{background:rgba(90,127,168,0.25);border-left:3px solid var(--meeting);}
 .tl-block.lprep   {background:rgba(196,128,138,0.25);  border-left:3px solid var(--prep);}
+.tl-block.lfamily {background:rgba(201,161,90,0.25);  border-left:3px solid var(--family);}
 .tl-block.lempty        {background:rgba(200,200,200,0.25);border-left:3px solid #CCC;}
 .tl-block.lplanner-tp  {background:rgba(107,158,120,0.2); border-left:3px solid var(--tp);border-left-style:dashed;}
 .tl-block.lplanner-xe  {background:rgba(122,146,176,0.2); border-left:3px solid var(--xe);border-left-style:dashed;}
@@ -97,6 +104,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tag-both  {background:var(--both-pale); color:var(--both);}
 .tag-meeting{background:var(--meeting-pale);color:var(--meeting);}
 .tag-prep  {background:var(--prep-pale); color:var(--prep);}
+.tag-family{background:var(--family-pale);color:var(--family);}
 .tag-empty {background:#EEE;color:#999;}
 
 /* Drag handle — vertical dots on LEFT edge of block */
@@ -127,6 +135,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tag-pill-btn.active-both  {background:var(--both-pale); border-color:var(--both); color:var(--both);}
 .tag-pill-btn.active-meeting{background:var(--meeting-pale);border-color:var(--meeting);color:var(--meeting);}
 .tag-pill-btn.active-prep       {background:var(--prep-pale); border-color:var(--prep); color:var(--prep);}
+.tag-pill-btn.active-family     {background:var(--family-pale); border-color:var(--family); color:var(--family);}
 .tag-pill-btn.active-planner-tp {background:var(--tp-pale);   border-color:var(--tp);   color:var(--tp);   border-style:dashed;}
 .tag-pill-btn.active-planner-xe {background:var(--xe-pale);   border-color:var(--xe);   color:var(--xe);   border-style:dashed;}
 .tag-pill-btn.active-empty {background:#EEE;border-color:#CCC;color:#999;}
@@ -195,6 +204,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .fchip.f-meeting{background:var(--meeting-pale);border-color:var(--meeting);color:var(--meeting);}
 .fchip.f-prep   {background:var(--prep-pale);border-color:var(--prep);color:var(--prep);}
 .fchip.f-both   {background:var(--both-pale);border-color:var(--both);color:var(--both);}
+.fchip.f-family {background:var(--family-pale);border-color:var(--family);color:var(--family);}
 .fchip.f-done   {background:var(--tp-pale);border-color:var(--tp);color:var(--tp);}
 
 /* WELCOME */
@@ -227,6 +237,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .loading.show{display:flex;}
 .spinner{width:32px;height:32px;border:3px solid var(--rose-pale);border-top-color:var(--rose);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:8px;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* LIFE TAB CARDS */
+.life-card{background:var(--warm);border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px var(--shadow);}
+.life-card h2{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;margin-bottom:8px;color:var(--text);display:flex;align-items:center;gap:6px;}
+.money-row{display:flex;gap:10px;margin-bottom:10px;}
+.money-stat{flex:1;background:var(--family-pale);border-radius:10px;padding:10px 12px;text-align:center;}
+.money-stat .num{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:var(--family);}
+.money-stat .lbl{font-size:10px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;}
+.life-text{font-size:13px;color:var(--text-mid);line-height:1.7;}
+.notion-link-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--both-pale);color:var(--both);border-radius:12px;padding:10px;font-size:12px;font-weight:500;text-decoration:none;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -246,6 +266,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
     <div class="pill"><b id="sDone">0</b> done</div>
     <div class="pill"><b id="sLeft">0</b> left</div>
     <div class="pill"><span class="sync-dot yellow" id="syncDot"></span><span id="syncTxt">offline</span></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn" id="tabWorkBtn" onclick="setTab('work')">💼 Work</button>
+    <button class="tab-btn" id="tabLifeBtn" onclick="setTab('life')">🏡 Life</button>
   </div>
   <div class="hdr-btns">
     <button class="btn btn-white" onclick="openReanalyze()">⚡ Re-analyze</button>
@@ -367,11 +391,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
-var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod_gemini_key';
-var LABELS=['tp','xe','both','meeting','prep','planner-tp','planner-xe',''];
-var LABEL_NAMES={tp:'TP',xe:'XE',both:'Both',meeting:'Meeting',prep:'Prep','planner-tp':'Planner·TP','planner-xe':'Planner·XE','':'—'};
+var KS='pod_v6_state', KD='pod_v6_date', KA='pod_v6_archive', KG='pod_gemini_key', KT='pod_v6_tab';
+var LABELS=['tp','xe','both','meeting','prep','family','planner-tp','planner-xe',''];
+var LABEL_NAMES={tp:'TP',xe:'XE',both:'Both',meeting:'Meeting',prep:'Prep',family:'Family','planner-tp':'Planner·TP','planner-xe':'Planner·XE','':'—'};
+var WORK_LABELS=['tp','xe','both','meeting','prep','planner-tp','planner-xe',''];
+var LIFE_LABELS=['family'];
+var NOTION_URL='https://app.notion.com/'; // update with your workspace/vision-board page link
 var START_HOUR=7, END_HOUR=18; // 8 AM to 5 PM
 var activeFilter='all';
+var activeTab='work';
 var selectedId=null; // currently selected block id
 
 // ── SUPABASE ───────────────────────────────────────────────────────────────
@@ -395,7 +423,7 @@ function loadArchiveSupa(cb){
 function setSyncDot(color){var d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');if(d){d.className='sync-dot'+(color!=='green'?' '+color:'');t.textContent=color==='green'?'synced':color==='yellow'?'syncing...':'offline';};}
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[]};
+var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null};
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
@@ -403,6 +431,8 @@ window.addEventListener('DOMContentLoaded',function(){
   document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   var key=localStorage.getItem(KG)||'';
   if(key){var el=document.getElementById('apiKeyInput');if(el)el.value=key;}
+  activeTab=localStorage.getItem(KT)||'work';
+  updateTabButtons();
 
   var today=todayStr(),lastDate=localStorage.getItem(KD)||'',raw=localStorage.getItem(KS);
 
@@ -566,8 +596,8 @@ function parseEmail(text){
       if(m2){
         var title2=m2[3].trim();
         var lbl2='';
-        var lblM=title2.match(/\[?(TP|XE|BOTH|MEETING|PREP)\]?/i);
-        if(lblM){lbl2=lblM[1].toLowerCase();title2=title2.replace(/\[?(TP|XE|BOTH|MEETING|PREP)\]?/i,'').trim();}
+        var lblM=title2.match(/\[?(TP|XE|BOTH|MEETING|PREP|FAMILY)\]?/i);
+        if(lblM){lbl2=lblM[1].toLowerCase();title2=title2.replace(/\[?(TP|XE|BOTH|MEETING|PREP|FAMILY)\]?/i,'').trim();}
         if(title2&&!NOISE.some(function(n){return title2.toLowerCase().startsWith(n);})){
           newTasks.push({id:id++,time:m2[1],endTime:m2[2]||addMinutes(m2[1],30),label:lbl2,labels:lbl2?[lbl2]:[],title:title2,done:false,note:'',carried:false,src:'parsed'});
         }
@@ -685,6 +715,19 @@ function isDateOverdue(dateStr){
   return dateStr<todayStr();
 }
 
+// ── TAB SWITCHING ──────────────────────────────────────────────────────────
+function setTab(tab){
+  activeTab=tab;
+  localStorage.setItem(KT,tab);
+  updateTabButtons();
+  render();
+}
+function updateTabButtons(){
+  var wb=document.getElementById('tabWorkBtn'),lb=document.getElementById('tabLifeBtn');
+  if(wb)wb.className='tab-btn'+(activeTab==='work'?' active':'');
+  if(lb)lb.className='tab-btn'+(activeTab==='life'?' active':'');
+}
+
 // ── RENDER ─────────────────────────────────────────────────────────────────
 function render(){
   var all=(S.tasks||[]).concat(S.manual||[]);
@@ -693,6 +736,8 @@ function render(){
   document.getElementById('sDone').textContent=all.filter(function(t){return t.done;}).length;
   document.getElementById('sLeft').textContent=all.filter(function(t){return !t.done;}).length;
 
+  if(activeTab==='life'){renderLifeTab();return;}
+
   var html='';
 
   // Summary
@@ -700,8 +745,8 @@ function render(){
 
   // Filter bar
   html+='<div class="filter-bar">';
-  ['all','tp','xe','meeting','prep','both','planner-tp','planner-xe','done'].forEach(function(f){
-    var labels={all:'All',tp:'🟢 TP',xe:'🔵 XE',meeting:'📅 Meeting',prep:'📋 Prep',both:'⚡ Both','planner-tp':'📌 Planner TP','planner-xe':'📌 Planner XE',done:'✓ Done'};
+  ['all','tp','xe','meeting','prep','both','done'].forEach(function(f){
+    var labels={all:'All',tp:'🟢 TP',xe:'🔵 XE',meeting:'📅 Meeting',prep:'📋 Prep',both:'⚡ Both',done:'✓ Done'};
     var active=activeFilter===f;
     html+='<button class="fchip'+(active?' f-'+f:'')+'" onclick="setFilter(\''+f+'\',this)">'+labels[f]+'</button>';
   });
@@ -970,6 +1015,57 @@ function render(){
   setInterval(updateNowLine,60000);
 }
 
+// ── LIFE TAB RENDER ────────────────────────────────────────────────────────
+function renderLifeTab(){
+  var html='';
+
+  // Family schedule for today (timed family-labeled tasks)
+  var all=(S.tasks||[]).concat(S.manual||[]);
+  var familyItems=all.filter(function(t){return t.label==='family';}).sort(function(a,b){return (a.time||'99:99').localeCompare(b.time||'99:99');});
+
+  html+='<div class="life-card"><h2>🏡 Today</h2>';
+  if(!familyItems.length){
+    html+='<div class="life-text">Nothing on the family calendar today.</div>';
+  } else {
+    familyItems.forEach(function(t){
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">';
+      html+='<span style="font-size:12px;color:var(--family);font-weight:500;flex-shrink:0;width:70px;">'+(t.time?formatTime12(t.time):'')+'</span>';
+      html+='<span style="flex:1;font-size:13px;color:var(--text);'+(t.done?'text-decoration:line-through;color:var(--text-light);':'')+'">'+esc(t.title)+'</span>';
+      html+='<div class="tl-check'+(t.done?' done':'')+'" data-id="'+t.id+'" onclick="togTask(this.dataset.id);renderLifeTab();" style="position:static;flex-shrink:0;">'+(t.done?'✓':'')+'</div>';
+      html+='</div>';
+    });
+  }
+  html+='</div>';
+
+  // Money
+  if(S.budget){
+    html+='<div class="life-card"><h2>💸 Money</h2>';
+    html+='<div class="money-row">';
+    html+='<div class="money-stat"><div class="num">'+(S.budget.checking||'—')+'</div><div class="lbl">Checking</div></div>';
+    html+='<div class="money-stat"><div class="num">'+(S.budget.surplus||'—')+'</div><div class="lbl">This Month</div></div>';
+    html+='</div>';
+    if(S.budget.patterns)html+='<div class="life-text">'+esc(S.budget.patterns)+'</div>';
+    html+='</div>';
+  }
+
+  // Training
+  if(S.training){
+    var typeColor={heavy:'#C4808A',light:'#6B9E78',rest:'#7A92B0',cardio:'#C9A15A',unknown:'#A09098'}[S.training.type]||'#A09098';
+    html+='<div class="life-card"><h2>🏋️ Training <span class="tl-tag" style="background:'+typeColor+'22;color:'+typeColor+';">'+(S.training.type||'unknown').toUpperCase()+'</span></h2>';
+    html+='<div class="life-text">'+esc(S.training.summary||'No training data available.')+'</div>';
+    html+='</div>';
+  }
+
+  // Link out to Notion for vision board / style / books
+  html+='<div class="life-card">';
+  html+='<h2>🔗 More</h2>';
+  html+='<div class="life-text" style="margin-bottom:8px;">Vision board, style inspo, and books live in Notion.</div>';
+  html+='<a class="notion-link-btn" href="'+NOTION_URL+'" target="_blank">Open Notion →</a>';
+  html+='</div>';
+
+  document.getElementById('main').innerHTML=html;
+}
+
 // ── TIMELINE RENDERER ──────────────────────────────────────────────────────
 function renderTimeline(){
   var totalMins=(END_HOUR-START_HOUR)*60;
@@ -994,6 +1090,8 @@ function renderTimeline(){
 
   // Task blocks — with overlap/stagger (Google Calendar style)
   var all=(S.tasks||[]).concat(S.manual||[]);
+  // Work tab never shows family-labeled items — those live in the Life tab
+  all=all.filter(function(t){return t.label!=='family';});
   if(activeFilter!=='all'){
     if(activeFilter==='done')all=all.filter(function(t){return t.done;});
     else all=all.filter(function(t){return t.label===activeFilter;});
@@ -1296,7 +1394,7 @@ function setTaskLabel(id,lbl,btn){
   // Update block class
   var block=document.getElementById('tlb-'+id);
   if(block){
-    block.className=block.className.replace(/\bltp|lxe|lboth|lmeeting|lprep|lempty\b/g,'').trim();
+    block.className=block.className.replace(/\bltp|lxe|lboth|lmeeting|lprep|lfamily|lempty\b/g,'').trim();
     block.classList.add('l'+(lbl||'empty'));
   }
   save();
@@ -1544,9 +1642,12 @@ function doReanalyzeWithKey(key,newInfo){
   if(newInfo)p+='NEW INFORMATION:\n'+newInfo+'\n\n';
   p+='Provide updated Plan of Day in EXACTLY this format:\n\n';
   p+='--- SECTION 1: SUMMARY ANALYSIS ---\n3-5 sentences. Reference real items.\n\n';
-  p+='--- SECTION 2: PROPOSED SCHEDULE ---\n';
-  p+='Schedule from '+timeStr+' to 17:00. Format: HH:MM-HH:MM | [LABEL] | Activity\n';
-  p+='[DEFERRED]:\n- [TP] item\n- [XE] item\n\n';
+  p+='--- SECTION 2: PROPOSED SCHEDULE ---\\n';
+  p+='Schedule from '+timeStr+' to 17:00. Format: HH:MM-HH:MM | [LABEL] | Activity\\n';
+  p+='MEETING RULE: Each meeting above is ONE line using its full start-to-end time. NEVER split into chunks.\\n';
+  p+='Example of CORRECT: 10:00-11:30 | [MEETING] | EDM - Schedule Updates\\n';
+  p+='Example of WRONG: three lines at 10:00-10:30, 10:30-11:00, 11:00-11:30 for the same meeting.\\n';
+  p+='[DEFERRED]:\\n- [TP] item\\n- [XE] item\\n\\n';
   p+='--- SECTION 3: TOP PRIORITIES ---\nTerraPower Priority 1: ...\nTerraPower Priority 2: ...\nX-Energy Priority 1: ...\nX-Energy Priority 2: ...\n\n';
   p+='--- SECTION 4: RISK FLAGS ---\nRED [TP]: ...\nRED [XE]: ...\nYELLOW [TP]: ...\nYELLOW [XE]: ...\nGREEN [TP]: ...\nGREEN [XE]: ...\n\n';
   p+='--- SECTION 5: KEY DECISIONS ---\nTerraPower Decision Today: ...\nX-Energy Decision Today: ...';
@@ -1810,7 +1911,7 @@ function uncompleteTask(id){
 
 function hardReset(){
   if(!confirm('Clear today\'s schedule and reload from email?'))return;
-  S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[]};
+  S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null};
   localStorage.removeItem(KS);
   localStorage.removeItem(KD);
   // Also clear Supabase
