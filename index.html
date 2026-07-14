@@ -423,7 +423,7 @@ function loadArchiveSupa(cb){
 function setSyncDot(color){var d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');if(d){d.className='sync-dot'+(color!=='green'?' '+color:'');t.textContent=color==='green'?'synced':color==='yellow'?'syncing...':'offline';};}
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null};
+var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null};
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
@@ -1019,6 +1019,15 @@ function render(){
 // ── LIFE TAB RENDER ────────────────────────────────────────────────────────
 function renderLifeTab(){
   var html='';
+
+  // Weather — small note, top of the tab so it's the first thing seen
+  if(S.weather){
+    var isRain=/rain/i.test(S.weather);
+    html+='<div class="life-card" style="padding:10px 16px;display:flex;align-items:center;gap:8px;">';
+    html+='<span style="font-size:18px;">'+(isRain?'🌧️':'☀️')+'</span>';
+    html+='<span class="life-text" style="margin:0;">'+esc(S.weather)+'</span>';
+    html+='</div>';
+  }
 
   html+='<div class="timeline-wrap">';
   html+='<div class="timeline-header"><h2>🏡 Today at Home</h2>';
@@ -1927,7 +1936,7 @@ function uncompleteTask(id){
 
 function hardReset(){
   if(!confirm('Clear today\'s schedule and reload from email?'))return;
-  S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null};
+  S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null};
   localStorage.removeItem(KS);
   localStorage.removeItem(KD);
   // Also clear Supabase
