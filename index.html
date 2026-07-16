@@ -423,7 +423,7 @@ function loadArchiveSupa(cb){
 function setSyncDot(color){var d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');if(d){d.className='sync-dot'+(color!=='green'?' '+color:'');t.textContent=color==='green'?'synced':color==='yellow'?'syncing...':'offline';};}
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null};
+var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,openTasks:[],openRisks:[]};
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
@@ -447,17 +447,21 @@ window.addEventListener('DOMContentLoaded',function(){
     // Background sync from Supabase
     loadSupa(function(remote,remoteDate){
       if(!remote||remoteDate!==today)return;
+      // Live open-item lists (tracker tasks + risks) always reflect the latest
+      // server refresh, regardless of the checkoff-merge logic below.
+      if(remote.openTasks)S.openTasks=remote.openTasks;
+      if(remote.openRisks)S.openRisks=remote.openRisks;
       // Validate remote state has proper timed tasks
       var remoteTasks=(remote.tasks||[]);
       var timedCount=remoteTasks.filter(function(t){return t.time&&t.time.length>0;}).length;
       var untimedCount=remoteTasks.filter(function(t){return !t.time||t.time.length===0;}).length;
       // If more than half tasks have no time, old broken state - ignore
-      if(remoteTasks.length>0&&untimedCount>timedCount){setSyncDot('yellow');return;}
+      if(remoteTasks.length>0&&untimedCount>timedCount){save();render();setSyncDot('yellow');return;}
       var ld=((S.tasks||[]).concat(S.manual||[])).filter(function(t){return t.done;}).length;
       var rd=((remote.tasks||[]).concat(remote.manual||[])).filter(function(t){return t.done;}).length;
       if(rd>=ld||(remote.backlog||[]).length>(S.backlog||[]).length){
         S=remote;localStorage.setItem(KS,JSON.stringify(S));render();toast('Synced ✓');
-      }
+      }else{save();render();}
       setSyncDot('green');
     });
     return;
@@ -783,6 +787,30 @@ function render(){
   if((S.risks||[]).length){
     html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--rose)"></div><h2>Risk Flags</h2><span class="sec-count">'+S.risks.length+'</span><span class="sec-arr open">▾</span></div><div class="sec-body">';
     S.risks.forEach(function(r){html+='<div class="risk-row"><span class="risk-badge risk-'+r.level+'">'+r.level.toUpperCase()+'</span>'+(r.label?'<span class="tl-tag tag-'+r.label+'">'+r.label.toUpperCase()+'</span>':'')+'<span style="color:var(--text-mid);line-height:1.5;">'+esc(r.text)+'</span></div>';});
+    html+='</div></div>';
+  }
+
+  // Open Items — live from Notion trackers (refreshed through the day, view-only).
+  // These are her real open tasks/goals/deadlines; completion is managed in Notion.
+  if((S.openTasks||[]).length){
+    var overdueCount=S.openTasks.filter(function(t){return t.overdue;}).length;
+    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--xe)"></div><h2>Open Items</h2><span class="sec-count">'+S.openTasks.length+(overdueCount?' · '+overdueCount+' overdue':'')+'</span><span class="sec-arr open">▾</span></div><div class="sec-body">';
+    // Sort: overdue first, then by due date, then undated
+    var sorted=S.openTasks.slice().sort(function(a,b){
+      if(a.overdue!==b.overdue)return a.overdue?-1:1;
+      if(a.due&&b.due)return a.due.localeCompare(b.due);
+      if(a.due)return -1; if(b.due)return 1; return 0;
+    });
+    sorted.forEach(function(t){
+      var tag=t.program==='TerraPower'?'tp':t.program==='X-energy'?'xe':'';
+      html+='<div class="risk-row">'+
+        (t.overdue?'<span class="risk-badge risk-red">DUE</span>':'')+
+        (tag?'<span class="tl-tag tag-'+tag+'">'+tag.toUpperCase()+'</span>':'')+
+        '<span style="color:var(--text-mid);line-height:1.5;">'+esc(t.title)+
+        (t.due?' <span style="color:var(--text-light);font-size:12px;">('+esc(t.due)+')</span>':'')+
+        '</span></div>';
+    });
+    html+='<div style="font-size:11px;color:var(--text-light);padding:6px 2px 0;font-style:italic;">Managed in Notion · updates through the day</div>';
     html+='</div></div>';
   }
 
