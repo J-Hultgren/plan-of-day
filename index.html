@@ -546,6 +546,7 @@ function loadPaste(){
 }
 
 function parseEmail(text){
+  var priorDate=S.date; // capture BEFORE overwriting, so we can tell if S.tasks are today's
   S.rawEmail=text;S.date=todayStr();localStorage.setItem(KD,S.date);
   var todayDate=todayStr();
   var tomorrowDate=new Date();tomorrowDate.setDate(tomorrowDate.getDate()+1);
@@ -610,9 +611,15 @@ function parseEmail(text){
     }
   });
 
-  // Preserve done/notes
-  var em={};(S.tasks||[]).forEach(function(t){em[t.title.toLowerCase()]=t;});
-  newTasks.forEach(function(t){var ex=em[t.title.toLowerCase()];if(ex){t.done=ex.done;t.note=ex.note||'';}});
+  // Preserve done/notes — but ONLY within the same day. Recurring meetings
+  // ("Lunch", "Inbox Check") have identical titles day to day, so matching on
+  // title alone would copy yesterday's check-off onto today's fresh meeting.
+  // Gate on date: only carry check-off state if the existing list is today's.
+  var sameDay = (priorDate === todayStr());
+  if(sameDay){
+    var em={};(S.tasks||[]).forEach(function(t){em[t.title.toLowerCase()]=t;});
+    newTasks.forEach(function(t){var ex=em[t.title.toLowerCase()];if(ex){t.done=ex.done;t.note=ex.note||'';}});
+  }
   S.tasks=newTasks;
 
   // Deferred — merge
