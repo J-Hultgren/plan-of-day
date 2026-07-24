@@ -423,7 +423,7 @@ function loadArchiveSupa(cb){
 function setSyncDot(color){var d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');if(d){d.className='sync-dot'+(color!=='green'?' '+color:'');t.textContent=color==='green'?'synced':color==='yellow'?'syncing...':'offline';};}
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,openTasks:[],openRisks:[]};
+var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,tradingBrief:null,openTasks:[],openRisks:[]};
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
@@ -451,6 +451,7 @@ window.addEventListener('DOMContentLoaded',function(){
       // server refresh, regardless of the checkoff-merge logic below.
       if(remote.openTasks)S.openTasks=remote.openTasks;
       if(remote.openRisks)S.openRisks=remote.openRisks;
+      if(remote.tradingBrief)S.tradingBrief=remote.tradingBrief;
       // Validate remote state has proper timed tasks
       var remoteTasks=(remote.tasks||[]);
       var timedCount=remoteTasks.filter(function(t){return t.time&&t.time.length>0;}).length;
@@ -794,6 +795,13 @@ function render(){
   if((S.risks||[]).length){
     html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--rose)"></div><h2>Risk Flags</h2><span class="sec-count">'+S.risks.length+'</span><span class="sec-arr open">▾</span></div><div class="sec-body">';
     S.risks.forEach(function(r){html+='<div class="risk-row"><span class="risk-badge risk-'+r.level+'">'+r.level.toUpperCase()+'</span>'+(r.label?'<span class="tl-tag tag-'+r.label+'">'+r.label.toUpperCase()+'</span>':'')+'<span style="color:var(--text-mid);line-height:1.5;">'+esc(r.text)+'</span></div>';});
+    html+='</div></div>';
+  }
+  
+  // Trading Brief — from TradingBrief.gs
+  if((S.tradingBrief||[]).length){
+    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--prep)"></div><h2>📈 Trading Brief</h2><span class="sec-arr open">▾</span></div><div class="sec-body">';
+    html+='<div style="padding:10px 14px;font-size:12px;color:var(--text-mid);line-height:1.7;white-space:pre-wrap;">'+esc(S.tradingBrief)+'</div>';
     html+='</div></div>';
   }
 
