@@ -487,6 +487,34 @@ function updateHeaderWeather(){
   el.innerHTML='<span>'+icon+'</span><span>'+esc(text)+'</span>';
 }
 
+// ── LIVE FIELD POLLING ─────────────────────────────────────────────────────
+// Trading brief / open tasks / open risks are written by OTHER scripts
+// (TradingBrief.gs, the main Plan of Day script) independently of this app.
+// Previously the app only checked Supabase for these once, at page load —
+// so if you left a tab open and a script ran later, you'd see nothing until
+// a manual refresh. This polls quietly every 5 minutes and merges in just
+// these fields (never a full state overwrite, and never triggers save()/
+// syncSupa() — this is read-only, so it can't clobber anything the app
+// itself is mid-edit on).
+function refreshLiveFieldsFromSupa(){
+  loadSupa(function(remote,remoteDate){
+    if(!remote||remoteDate!==todayStr())return;
+    var changed=false;
+    if(remote.tradingBrief!==undefined && remote.tradingBrief!==S.tradingBrief){
+      S.tradingBrief=remote.tradingBrief; changed=true;
+    }
+    if(remote.tradingBriefSummary!==undefined && remote.tradingBriefSummary!==S.tradingBriefSummary){
+      S.tradingBriefSummary=remote.tradingBriefSummary; changed=true;
+    }
+    if(remote.openTasks){ S.openTasks=remote.openTasks; changed=true; }
+    if(remote.openRisks){ S.openRisks=remote.openRisks; changed=true; }
+    if(changed){
+      localStorage.setItem(KS,JSON.stringify(S));
+      if(activeTab==='trading'||activeTab==='work') render();
+    }
+  });
+}
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 // NOTE: `tradingBrief` added so the Trading Brief card (populated by
 // TradingBrief.gs writing into this same Supabase row) has somewhere to live.
@@ -499,6 +527,8 @@ window.addEventListener('DOMContentLoaded',function(){
   updateHeaderWeather();
   fetchWeather();
   setInterval(fetchWeather,30*60*1000);
+  setTimeout(refreshLiveFieldsFromSupa,20000); // catch a script that's mid-run at page load
+  setInterval(refreshLiveFieldsFromSupa,5*60*1000);
   var key=localStorage.getItem(KG)||'';
   if(key){var el=document.getElementById('apiKeyInput');if(el)el.value=key;}
   activeTab=localStorage.getItem(KT)||'work';
