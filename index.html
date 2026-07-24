@@ -32,6 +32,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .hdr-top{display:flex;align-items:flex-start;justify-content:space-between;}
 .hdr-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:#fff;}
 .hdr-date{font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;}
+.hdr-weather{font-size:11px;color:rgba(255,255,255,0.92);margin-top:5px;display:flex;align-items:center;gap:5px;}
 .hdr-clock{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;font-weight:300;flex-shrink:0;}
 .hdr-stats{display:flex;gap:7px;margin-top:7px;flex-wrap:wrap;}
 .pill{background:rgba(255,255,255,0.2);border-radius:20px;padding:2px 9px;font-size:11px;color:#fff;}
@@ -237,6 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
     <div><div class="hdr-title">Plan of Day</div><div class="hdr-date" id="hdrDate"></div></div>
     <div class="hdr-clock" id="hdrClock"></div>
   </div>
+  <div class="hdr-weather" id="hdrWeather">🌡️ Loading weather…</div>
   <div class="hdr-stats">
     <div class="pill">TP: <b id="sTP">0</b></div>
     <div class="pill">XE: <b id="sXE">0</b></div>
@@ -246,6 +248,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   </div>
   <div class="tab-bar">
     <button class="tab-btn" id="tabWorkBtn" onclick="setTab('work')">💼 Work</button>
+    <button class="tab-btn" id="tabTradingBtn" onclick="setTab('trading')">📈 Trading</button>
     <button class="tab-btn" id="tabLifeBtn" onclick="setTab('life')">🏡 Life</button>
   </div>
   <div class="hdr-btns">
@@ -399,15 +402,103 @@ function loadArchiveSupa(cb){
 }
 function setSyncDot(color){var d=document.getElementById('syncDot'),t=document.getElementById('syncTxt');if(d){d.className='sync-dot'+(color!=='green'?' '+color:'');t.textContent=color==='green'?'synced':color==='yellow'?'syncing...':'offline';};}
 
+// ── WEATHER ────────────────────────────────────────────────────────────────
+// Fetched client-side from Open-Meteo (free, no API key) so it's always
+// current — independent of whatever the morning Gemini email pipeline sends.
+// Coordinates default to Durham, NH. Update WEATHER_LAT/WEATHER_LON if wrong.
+var WEATHER_LAT=43.1339, WEATHER_LON=-70.9264;
+var WEATHER_CODES={
+  0:'Clear',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Fog',48:'Freezing fog',
+  51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',
+  56:'Freezing drizzle',57:'Freezing drizzle',
+  61:'Light rain',63:'Rain',65:'Heavy rain',
+  66:'Freezing rain',67:'Freezing rain',
+  71:'Light snow',73:'Snow',75:'Heavy snow',77:'Snow grains',
+  80:'Light showers',81:'Showers',82:'Heavy showers',
+  85:'Snow showers',86:'Heavy snow showers',
+  95:'Thunderstorm',96:'Thunderstorm w/ hail',99:'Thunderstorm w/ heavy hail'
+};
+function weatherIcon(code,isNight){
+  if(code===0||code===1)return isNight?'🌙':'☀️';
+  if(code===2)return isNight?'☁️':'⛅';
+  if(code===3)return '☁️';
+  if(code===45||code===48)return '🌫️';
+  if(code>=51&&code<=67)return '🌧️';
+  if(code>=71&&code<=77)return '❄️';
+  if(code>=80&&code<=82)return '🌦️';
+  if(code>=85&&code<=86)return '🌨️';
+  if(code>=95)return '⛈️';
+  return '🌡️';
+}
+function fetchWeather(){
+  var url='https://api.open-meteo.com/v1/forecast?latitude='+WEATHER_LAT+'&longitude='+WEATHER_LON
+    +'&current=temperature_2m,weather_code,is_day'
+    +'&hourly=temperature_2m,precipitation_probability,weather_code'
+    +'&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max'
+    +'&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1';
+  fetch(url).then(function(r){return r.json();}).then(function(data){
+    if(!data||!data.current){throw new Error('bad weather response');}
+    S.weatherReport=formatWeatherReport(data);
+    S.weatherIcon=weatherIcon(data.current.weather_code,data.current.is_day===0);
+    save();
+    updateHeaderWeather();
+  }).catch(function(e){
+    console.warn('Weather fetch failed:',e);
+    var el=document.getElementById('hdrWeather');
+    if(el&&!S.weatherReport)el.textContent='🌡️ Weather unavailable';
+  });
+}
+function formatWeatherReport(data){
+  var curTemp=Math.round(data.current.temperature_2m);
+  var curCode=data.current.weather_code;
+  var curDesc=WEATHER_CODES[curCode]||'—';
+  var high=data.daily&&data.daily.temperature_2m_max?Math.round(data.daily.temperature_2m_max[0]):null;
+  var low=data.daily&&data.daily.temperature_2m_min?Math.round(data.daily.temperature_2m_min[0]):null;
+
+  var precipNote='';
+  if(data.hourly&&data.hourly.time){
+    var now=new Date();
+    for(var i=0;i<data.hourly.time.length;i++){
+      var hTime=new Date(data.hourly.time[i]+':00');
+      if(hTime<now)continue;
+      var prob=data.hourly.precipitation_probability[i];
+      if(prob>=40){
+        var ap=hTime.getHours()>=12?'PM':'AM';
+        var h12=hTime.getHours()%12||12;
+        var hCode=data.hourly.weather_code[i];
+        var kind=hCode>=71&&hCode<=77?'Snow':'Rain';
+        precipNote=' — '+kind+' expected around '+h12+ap+' ('+prob+'% chance)';
+        break;
+      }
+    }
+  }
+
+  var parts=[curTemp+'°F now, '+curDesc.toLowerCase()];
+  if(high!==null&&low!==null)parts.push('high '+high+'°F / low '+low+'°F');
+  var text=parts.join(', ')+precipNote+'.';
+  return text;
+}
+function updateHeaderWeather(){
+  var el=document.getElementById('hdrWeather');
+  if(!el)return;
+  var icon=S.weatherIcon||'🌡️';
+  var text=S.weatherReport||S.weather||'Loading weather…';
+  el.innerHTML='<span>'+icon+'</span><span>'+esc(text)+'</span>';
+}
+
 // ── STATE ──────────────────────────────────────────────────────────────────
 // NOTE: `tradingBrief` added so the Trading Brief card (populated by
 // TradingBrief.gs writing into this same Supabase row) has somewhere to live.
-var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,tradingBrief:null,openTasks:[],openRisks:[]};
+var S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,weatherReport:null,weatherIcon:null,tradingBrief:null,tradingBriefSummary:null,openTasks:[],openRisks:[]};
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',function(){
   startClock();
   document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  updateHeaderWeather();
+  fetchWeather();
+  setInterval(fetchWeather,30*60*1000);
   var key=localStorage.getItem(KG)||'';
   if(key){var el=document.getElementById('apiKeyInput');if(el)el.value=key;}
   activeTab=localStorage.getItem(KT)||'work';
@@ -426,6 +517,7 @@ window.addEventListener('DOMContentLoaded',function(){
       if(remote.openTasks)S.openTasks=remote.openTasks;
       if(remote.openRisks)S.openRisks=remote.openRisks;
       if(remote.tradingBrief)S.tradingBrief=remote.tradingBrief;
+      if(remote.tradingBriefSummary)S.tradingBriefSummary=remote.tradingBriefSummary;
       var remoteTasks=(remote.tasks||[]);
       var timedCount=remoteTasks.filter(function(t){return t.time&&t.time.length>0;}).length;
       var untimedCount=remoteTasks.filter(function(t){return !t.time||t.time.length===0;}).length;
@@ -686,8 +778,9 @@ function setTab(tab){
   render();
 }
 function updateTabButtons(){
-  var wb=document.getElementById('tabWorkBtn'),lb=document.getElementById('tabLifeBtn');
+  var wb=document.getElementById('tabWorkBtn'),tb=document.getElementById('tabTradingBtn'),lb=document.getElementById('tabLifeBtn');
   if(wb)wb.className='tab-btn'+(activeTab==='work'?' active':'');
+  if(tb)tb.className='tab-btn'+(activeTab==='trading'?' active':'');
   if(lb)lb.className='tab-btn'+(activeTab==='life'?' active':'');
 }
 
@@ -700,6 +793,7 @@ function render(){
   document.getElementById('sLeft').textContent=all.filter(function(t){return !t.done;}).length;
 
   if(activeTab==='life'){renderLifeTab();return;}
+  if(activeTab==='trading'){renderTradingTab();return;}
 
   var html='';
 
@@ -737,13 +831,6 @@ function render(){
   if((S.risks||[]).length){
     html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--rose)"></div><h2>Risk Flags</h2><span class="sec-count">'+S.risks.length+'</span><span class="sec-arr open">▾</span></div><div class="sec-body">';
     S.risks.forEach(function(r){html+='<div class="risk-row"><span class="risk-badge risk-'+r.level+'">'+r.level.toUpperCase()+'</span>'+(r.label?'<span class="tl-tag tag-'+r.label+'">'+r.label.toUpperCase()+'</span>':'')+'<span style="color:var(--text-mid);line-height:1.5;">'+esc(r.text)+'</span></div>';});
-    html+='</div></div>';
-  }
-
-  // Trading Brief — populated by TradingBrief.gs writing into this Supabase row
-  if(S.tradingBrief){
-    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--prep)"></div><h2>📈 Trading Brief</h2><span class="sec-arr open">▾</span></div><div class="sec-body">';
-    html+='<div style="padding:10px 14px;font-size:12px;color:var(--text-mid);line-height:1.7;white-space:pre-wrap;">'+esc(S.tradingBrief)+'</div>';
     html+='</div></div>';
   }
 
@@ -978,17 +1065,30 @@ function render(){
   setInterval(updateNowLine,60000);
 }
 
+// ── TRADING TAB RENDER ─────────────────────────────────────────────────────
+// Populated by TradingBrief.gs writing tradingBriefSummary + tradingBrief
+// into the same Supabase 'jessa' row this app already syncs with.
+function renderTradingTab(){
+  var html='';
+  if(!S.tradingBrief&&!S.tradingBriefSummary){
+    html+='<div class="welcome-card"><div style="font-size:36px;margin-bottom:10px;">📈</div><h2>No brief yet</h2><p>Your Trading Brief script runs automatically each morning (~6:45 AM) and again around 12:30 PM. Once it writes to Supabase, the summary and full report will show up here.</p></div>';
+    document.getElementById('main').innerHTML=html;
+    return;
+  }
+  if(S.tradingBriefSummary){
+    html+='<div class="summary-card"><h2>📈 Trading Brief — Summary</h2><div class="summary-text">'+esc(S.tradingBriefSummary)+'</div></div>';
+  }
+  if(S.tradingBrief){
+    html+='<div class="sec"><div class="sec-hdr" onclick="togSec(this)"><div class="sec-dot" style="background:var(--prep)"></div><h2>Full Report</h2><span class="sec-arr open">▾</span></div><div class="sec-body">';
+    html+='<div style="padding:10px 14px;font-size:12px;color:var(--text-mid);line-height:1.7;white-space:pre-wrap;">'+esc(S.tradingBrief)+'</div>';
+    html+='</div></div>';
+  }
+  document.getElementById('main').innerHTML=html;
+}
+
 // ── LIFE TAB RENDER ────────────────────────────────────────────────────────
 function renderLifeTab(){
   var html='';
-
-  if(S.weather){
-    var isRain=/rain/i.test(S.weather);
-    html+='<div class="life-card" style="padding:10px 16px;display:flex;align-items:center;gap:8px;">';
-    html+='<span style="font-size:18px;">'+(isRain?'🌧️':'☀️')+'</span>';
-    html+='<span class="life-text" style="margin:0;">'+esc(S.weather)+'</span>';
-    html+='</div>';
-  }
 
   html+='<div class="timeline-wrap">';
   html+='<div class="timeline-header"><h2>🏡 Today at Home</h2>';
@@ -1852,7 +1952,7 @@ function uncompleteTask(id){
 
 function hardReset(){
   if(!confirm('Clear today\'s schedule and reload from email?'))return;
-  S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,tradingBrief:null};
+  S={date:'',summary:'',rawEmail:'',tasks:[],priorities:[],risks:[],decisions:[],deferred:[],manual:[],backlog:[],tomorrow:[],plannerTasks:[],budget:null,training:null,weather:null,weatherReport:S.weatherReport,weatherIcon:S.weatherIcon,tradingBrief:null,tradingBriefSummary:null};
   localStorage.removeItem(KS);
   localStorage.removeItem(KD);
   try{fetch(SUPA_URL+'/rest/v1/pod_state',{method:'POST',headers:Object.assign({},supaHdrs(),{'Prefer':'resolution=merge-duplicates'}),body:JSON.stringify({id:'jessa',state:{},date:'',updated_at:new Date().toISOString()})}).catch(function(){});}catch(e){}
